@@ -1,0 +1,114 @@
+{
+  "originHash" : "e76af729c48a9faf58cde287c601ce679b7061c0a50ad772ab0c7c4dfede9627",
+  "pins" : [
+    {
+      "identity" : "navdata",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/SF50-TOLD/NavData",
+      "state" : {
+        "revision" : "5d72de2c74fb2eb9b58392fdcb6e2812b9ffd145",
+        "version" : "1.0.0"
+      }
+    },
+    {
+      "identity" : "streamingcsv",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/RISCfuture/StreamingCSV",
+      "state" : {
+        "revision" : "c45b96da50605c3d83bed31fe7934fdf583467ab",
+        "version" : "2.1.0"
+      }
+    },
+    {
+      "identity" : "streaminglzma",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/RISCfuture/StreamingLZMA",
+      "state" : {
+        "revision" : "748b562b64863d97055aeb7ece6d779268463a8e",
+        "version" : "1.3.0"
+      }
+    },
+    {
+      "identity" : "swift-argument-parser",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/apple/swift-argument-parser",
+      "state" : {
+        "revision" : "6a52f3251125d74daf04fcbd5e6f08a75d074382",
+        "version" : "1.8.2"
+      }
+    },
+    {
+      "identity" : "swift-log",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/apple/swift-log",
+      "state" : {
+        "revision" : "a878e7f8f46cfc0e1125e565b5c08e7d5272dc9a",
+        "version" : "1.14.0"
+      }
+    },
+    {
+      "identity" : "swift-macro-toolkit",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/stackotter/swift-macro-toolkit",
+      "state" : {
+        "revision" : "d6ed555bb83c9f21a292e9769952e8f52610a6e2",
+        "version" : "0.9.0"
+      }
+    },
+    {
+      "identity" : "swift-syntax",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/swiftlang/swift-syntax",
+      "state" : {
+        "revision" : "79e4b74a295b6eb74a8b585e3a39d29e70c1dbd1",
+        "version" : "603.0.2"
+      }
+    },
+    {
+      "identity" : "swiftcifp",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/RISCfuture/SwiftCIFP",
+      "state" : {
+        "revision" : "6b11542cf4cdb4bcf55ae198e256122085c679d9",
+        "version" : "1.1.0"
+      }
+    },
+    {
+      "identity" : "swiftdof",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/RISCfuture/SwiftDOF",
+      "state" : {
+        "revision" : "6803de4cad7288d30d6f9463216f1540f06fd738",
+        "version" : "1.1.0"
+      }
+    },
+    {
+      "identity" : "swiftnasr",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/RISCfuture/SwiftNASR",
+      "state" : {
+        "revision" : "47cf455cb76513cc15afc2b14a23a26e1be542c4",
+        "version" : "4.0.0"
+      }
+    },
+    {
+      "identity" : "swifttimezonelookup",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/patrick-zippenfenig/SwiftTimeZoneLookup",
+      "state" : {
+        "revision" : "e4db6c3ad57b58d472a05b73cf8ea78352957500",
+        "version" : "1.0.8"
+      }
+    },
+    {
+      "identity" : "zipfoundation",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/weichsel/ZIPFoundation",
+      "state" : {
+        "revision" : "22787ffb59de99e5dc1fbfe80b19c97a904ad48d",
+        "version" : "0.9.20"
+      }
+    }
+  ],
+  "version" : 3
+}
