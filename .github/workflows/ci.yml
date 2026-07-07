@@ -18,7 +18,7 @@ jobs:
       matrix:
         include:
           - os: macos-26
-            swift: "6.2"
+            swift: "6.3"
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v6
@@ -31,7 +31,7 @@ jobs:
     name: Build on Linux
     runs-on: ubuntu-latest
     container:
-      image: swift:6.2
+      image: swift:6.3
     steps:
       - uses: actions/checkout@v6
       - name: Install liblzma
