@@ -52,7 +52,7 @@ jobs:
               echo "Release $tag already exists; skipping."
               return 0
             fi
-            echo "Generating cycle $tag…"
+            echo "Generating cycle ${tag}"
             rm -rf out && mkdir -p out
             swift run -c release nav-data-generator --cycle "$selector" --output out
             gh release create "$tag" "out/$tag.plist.lzma" \
