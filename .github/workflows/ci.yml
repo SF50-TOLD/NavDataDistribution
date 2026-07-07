@@ -25,17 +25,8 @@ jobs:
       - uses: SwiftyLab/setup-swift@latest
         with:
           swift-version: ${{ matrix.swift }}
-      - name: Build
-        run: swift build -v
-  build-linux:
-    name: Build on Linux
-    runs-on: ubuntu-latest
-    container:
-      image: swift:6.3
-    steps:
-      - uses: actions/checkout@v6
       - name: Install liblzma
-        run: apt-get update && apt-get install -y liblzma-dev
+        run: brew install xz
       - name: Build
         run: swift build -v
   lint:

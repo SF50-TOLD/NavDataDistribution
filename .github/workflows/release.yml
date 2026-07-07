@@ -23,15 +23,17 @@ concurrency:
 jobs:
   publish:
     name: Generate and publish
-    runs-on: ubuntu-latest
+    # macOS: several dependencies (SwiftNASR et al.) use Apple-only Foundation
+    # APIs such as String(localized:) that aren't available on Linux Foundation.
+    runs-on: macos-26
     steps:
       - uses: actions/checkout@v6
       - uses: SwiftyLab/setup-swift@latest
         with:
           swift-version: "6.3"
       - name: Install liblzma
-        # Provides lzma.h for StreamingLZMAXZ's Clzma system-library shim.
-        run: sudo apt-get update && sudo apt-get install -y liblzma-dev
+        # Provides liblzma.pc (pkg-config) for StreamingLZMAXZ's Clzma system library.
+        run: brew install xz
       - name: Build generator
         run: swift build -c release
       - name: Publish cycles
