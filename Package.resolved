@@ -24,8 +24,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/RISCfuture/StreamingLZMA",
       "state" : {
-        "revision" : "748b562b64863d97055aeb7ece6d779268463a8e",
-        "version" : "1.3.0"
+        "revision" : "51e43c72c0a337d05d1546cc549e31938750b79d",
+        "version" : "1.3.1"
       }
     },
     {
