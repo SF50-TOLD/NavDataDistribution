@@ -1,0 +1,82 @@
+name: Publish Nav Data
+
+on:
+  schedule:
+    # Daily at 09:00 UTC, but only acts the day before each AIRAC cycle takes
+    # effect: it cuts that cycle's release then, so its continuously-updated
+    # OurAirports data is fresh. Every other day is a no-op. Idempotent.
+    - cron: "0 9 * * *"
+  workflow_dispatch:
+    inputs:
+      cycle:
+        description: "Cycle to generate: current, next, or YYYY-MM-DD. Blank = current and next."
+        required: false
+        default: ""
+
+permissions:
+  contents: write
+
+concurrency:
+  group: publish-nav-data
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    name: Generate and publish
+    # Runs on the ubuntu-latest host (not a container) so the preinstalled `gh` CLI is
+    # available for publishing releases.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: SwiftyLab/setup-swift@latest
+        with:
+          swift-version: "6.3"
+      - name: Install liblzma
+        # Provides lzma.h + liblzma.pc (pkg-config) for StreamingLZMAXZ's Clzma system library.
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y liblzma-dev pkg-config
+      - name: Build generator
+        run: swift build -c release
+      - name: Publish cycles
+        env:
+          GH_TOKEN: ${{ github.token }}
+          # Pass the (maintainer-only) dispatch input via env, never inline, to
+          # keep it out of the shell command line.
+          DISPATCH_CYCLE: ${{ github.event.inputs.cycle }}
+        run: |
+          set -euo pipefail
+
+          publish_cycle() {
+            selector="$1"
+            tag="$(swift run -c release nav-data-generator --print-cycle --cycle "$selector")"
+            if gh release view "$tag" >/dev/null 2>&1; then
+              echo "Release $tag already exists; skipping."
+              return 0
+            fi
+            echo "Generating cycle ${tag}"
+            rm -rf out && mkdir -p out
+            swift run -c release nav-data-generator --cycle "$selector" --output out
+            gh release create "$tag" "out/$tag.plist.lzma" \
+              --title "Nav Data $tag" \
+              --notes "Automated nav-data release for AIRAC cycle $tag."
+            echo "Published $tag."
+          }
+
+          if [ -n "$DISPATCH_CYCLE" ]; then
+            # Explicit manual request: publish exactly what was asked for.
+            publish_cycle "$DISPATCH_CYCLE"
+          else
+            # Cut the next cycle the day before it takes effect, so its
+            # continuously-updated OurAirports data is fresh. The FAA sources
+            # appear weeks earlier, but publishing then would bake in stale
+            # OurAirports data. The tag is the effective date (YYYY-MM-DD), so
+            # publish once "next" is effective tomorrow.
+            next_tag="$(swift run -c release nav-data-generator --print-cycle --cycle next)"
+            tomorrow="$(date -u -d tomorrow +%F)"
+            if [[ ! "$tomorrow" < "$next_tag" ]]; then
+              publish_cycle next
+            else
+              echo "Next cycle $next_tag is more than a day out (tomorrow $tomorrow); skipping."
+            fi
+          fi

@@ -1,0 +1,47 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    container:
+      image: swift:6.3
+    steps:
+      - uses: actions/checkout@v6
+      - name: Install liblzma
+        run: |
+          apt-get update
+          apt-get install -y liblzma-dev pkg-config
+      - name: Build
+        run: swift build -v
+  lint:
+    name: Run SwiftLint
+    runs-on: ubuntu-latest
+    container: ghcr.io/realm/swiftlint:latest
+    steps:
+      - uses: actions/checkout@v6
+      - name: Run SwiftLint
+        run: swiftlint --strict
+  swift-format:
+    name: Run swift-format
+    runs-on: ubuntu-latest
+    container:
+      image: swift:latest
+    steps:
+      - uses: actions/checkout@v6
+      - name: Download .swift-format config
+        run: |
+          apt-get update && apt-get install -y wget
+          wget -O .swift-format https://gist.githubusercontent.com/RISCfuture/e0c21afb7bd80a88d128a42bf40d2ecd/raw/.swift-format
+      - name: Run swift-format lint
+        run: swift format lint --strict -r .
