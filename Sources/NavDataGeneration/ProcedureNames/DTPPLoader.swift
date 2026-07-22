@@ -57,24 +57,6 @@ struct DTPPLoader {
   /// Logger for status messages and errors.
   let logger: Logger
 
-  /// Drops a leading UTF-8 byte order mark, which the FAA prepends to the
-  /// metafile.
-  ///
-  /// Darwin's `XMLParser` skips the mark, but swift-corelibs-foundation's
-  /// treats it as content before the prolog and fails the whole document with
-  /// `NSXMLParserInternalError`. Stripping it keeps Linux and macOS in step.
-  /// Renders the first few bytes as hex, to identify a payload that is not the
-  /// XML the parser expects — gzip (`1f8b`) or a byte order mark (`efbbbf`).
-  private static func leadingBytes(of data: Data) -> String {
-    data.prefix(4).map { String(format: "%02x", $0) }.joined()
-  }
-
-  private static func strippingByteOrderMark(from data: Data) -> Data {
-    let byteOrderMark = Data([0xEF, 0xBB, 0xBF])
-    guard data.starts(with: byteOrderMark) else { return data }
-    return data.dropFirst(byteOrderMark.count)
-  }
-
   /// Downloads and parses the metafile for the given cycle.
   /// - Parameters:
   ///   - cycle: The cycle to fetch charts for.
@@ -105,9 +87,7 @@ struct DTPPLoader {
 
     try Task.checkCancellation()
 
-    logger.notice(
-      "Parsing d-TPP metafile (\(data.count) bytes, starting \(Self.leadingBytes(of: data)))…"
-    )
+    logger.notice("Parsing d-TPP metafile (\(data.count) bytes)…")
     let index = try parseCharts(from: data)
     await onProgress?(100, 100)
 
@@ -116,17 +96,36 @@ struct DTPPLoader {
   }
 
   /// Parses the metafile, collecting approach and departure records.
+  ///
+  /// The parser reads from a stream rather than from `Data` because
+  /// swift-corelibs-foundation's data-based parser reports failure at the end of
+  /// a document it has in fact parsed completely. Its `parse()` result is
+  /// unreliable in both directions on Linux — it also reports success for
+  /// truncated input — so an empty index, which the metafile never legitimately
+  /// produces, is what actually distinguishes a failed parse.
   private func parseCharts(from data: Data) throws -> DTPPIndex {
     let delegate = MetafileDelegate()
-    let parser = XMLParser(data: Self.strippingByteOrderMark(from: data))
+    let parser = XMLParser(stream: InputStream(data: data))
     parser.delegate = delegate
 
-    guard parser.parse() else {
-      let reason = parser.parserError?.localizedDescription ?? "unknown error"
+    let parsed = parser.parse()
+
+    guard !delegate.index.isEmpty else {
+      let reason = parser.parserError?.localizedDescription ?? "no charts found"
       throw DTPPLoaderError.parseFailed(
         "\(reason) at line \(parser.lineNumber), column \(parser.columnNumber)"
       )
     }
+
+    if !parsed {
+      logger.warning(
+        """
+        d-TPP parser reported an error at line \(parser.lineNumber) but returned \
+        \(delegate.index.count) airports; using them.
+        """
+      )
+    }
+
     return delegate.index
   }
 }
