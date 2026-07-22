@@ -16,17 +16,20 @@ For a requested NASR cycle, the generator:
 3. Downloads and parses [OurAirports](https://ourairports.com) CSV data for international
    airports ([StreamingCSV](https://github.com/RISCfuture/StreamingCSV)).
 4. Downloads and parses FAA CIFP procedure data ([SwiftCIFP](https://github.com/RISCfuture/SwiftCIFP)).
-5. Downloads and parses the FAA Digital Obstacle File ([SwiftDOF](https://github.com/RISCfuture/SwiftDOF)).
-6. Merges the datasets (NASR takes priority over OurAirports) into the shared
+5. Downloads and parses the FAA d-TPP metafile for official procedure names,
+   joining it with NASR `STARDP` records so approaches and departures carry
+   their published chart titles.
+6. Downloads and parses the FAA Digital Obstacle File ([SwiftDOF](https://github.com/RISCfuture/SwiftDOF)).
+7. Merges the datasets (NASR takes priority over OurAirports) into the shared
    [`NavData`](https://github.com/RISCfuture/NavData) schema.
-7. Writes the result as a binary property list, then compresses it with
+8. Writes the result as a binary property list, then compresses it with
    [StreamingLZMA](https://github.com/RISCfuture/StreamingLZMA)'s XZ container format —
    byte-compatible with the app's `NSData.decompressed(using: .lzma)`.
 
 ## Usage
 
 ```console
-$ swift run nav-data-generator --cycle current --output ./out
+swift run nav-data-generator --cycle current --output ./out
 ```
 
 ### Options

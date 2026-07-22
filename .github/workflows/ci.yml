@@ -24,6 +24,19 @@ jobs:
           apt-get install -y liblzma-dev pkg-config
       - name: Build
         run: swift build -v
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    container:
+      image: swift:6.3
+    steps:
+      - uses: actions/checkout@v6
+      - name: Install liblzma
+        run: |
+          apt-get update
+          apt-get install -y liblzma-dev pkg-config
+      - name: Test
+        run: swift test -v
   lint:
     name: Run SwiftLint
     runs-on: ubuntu-latest
