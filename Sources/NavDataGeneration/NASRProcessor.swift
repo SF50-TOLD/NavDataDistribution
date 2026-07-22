@@ -50,8 +50,9 @@ enum DepartureNameIndex {
   /// code.
   ///
   /// A usable code pairs the CIFP procedure identifier with an exit fix, as in
-  /// `"GAPP7.GAP"`. Codes without that separator, and the literal
-  /// `"NOT ASSIGNED"`, name no procedure and are skipped.
+  /// `"GAPP7.GAP"`. Codes without a non-empty identifier before that
+  /// separator, and the literal `"NOT ASSIGNED"`, name no procedure and are
+  /// skipped.
   /// - Parameter codesAndNames: Computer code and name for each departure.
   /// - Returns: Official names keyed by CIFP procedure identifier.
   static func index(
@@ -62,10 +63,10 @@ enum DepartureNameIndex {
     for (code, name) in codesAndNames {
       guard let code, code != Self.unassignedCode,
         let name, !name.isEmpty,
-        let identifier = code.split(separator: ".").first, identifier != code[...]
+        let separatorIndex = code.firstIndex(of: "."), separatorIndex != code.startIndex
       else { continue }
 
-      index[String(identifier)] = name
+      index[String(code[code.startIndex..<separatorIndex])] = name
     }
 
     return index
@@ -184,17 +185,25 @@ struct NASRProcessor {
     try Task.checkCancellation()
 
     logger.notice("Parsing NASR departure procedures…")
-    try await nasr.parse(
-      .departureArrivalProceduresComplete,
-      withProgress: { progress in
-        pollProgress(
-          progress,
-          mappingTo: Self.ilsProgressEnd..<Self.departureProceduresProgressEnd,
-          onProgress: onProgress
-        )
-      },
-      errorHandler: { error in self.handleParseError(error, context: "departure procedure") }
-    )
+    do {
+      try await nasr.parse(
+        .departureArrivalProceduresComplete,
+        withProgress: { progress in
+          pollProgress(
+            progress,
+            mappingTo: Self.ilsProgressEnd..<Self.departureProceduresProgressEnd,
+            onProgress: onProgress
+          )
+        },
+        errorHandler: { error in self.handleParseError(error, context: "departure procedure") }
+      )
+    } catch is CancellationError {
+      throw CancellationError()
+    } catch {
+      logger.warning(
+        "Could not parse NASR departure procedures; departures will have no names: \(error)"
+      )
+    }
     await onProgress?(Self.departureProceduresProgressEnd, 100)
 
     let NASRData = await nasr.data

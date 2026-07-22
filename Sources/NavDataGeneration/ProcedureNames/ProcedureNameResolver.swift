@@ -88,10 +88,10 @@ struct ProcedureNameResolver: Sendable {
     self.departureCharts = departureCharts
   }
 
-  /// Removes a trailing qualifier such as `" (RNAV)"` so a NASR name and its
-  /// chart title compare equal.
+  /// Removes one or more trailing qualifiers such as `" (OBSTACLE) (RNAV)"` so
+  /// a NASR name and its chart title compare equal.
   private static func strippingTrailingParenthetical(_ name: String) -> String {
-    name.replacing(/\s*\([^)]*\)\s*$/, with: "")
+    name.replacing(/(\s*\([^)]*\))+\s*$/, with: "")
       .trimmingCharacters(in: .whitespaces)
   }
 

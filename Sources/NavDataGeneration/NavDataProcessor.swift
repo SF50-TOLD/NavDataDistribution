@@ -255,7 +255,13 @@ public struct NavDataProcessor: Sendable {
     } catch is CancellationError {
       throw CancellationError()
     } catch {
-      logger.warning("Could not load d-TPP data; procedures will use generated names: \(error)")
+      logger.warning(
+        """
+        Could not load d-TPP data; departures keep their NASR names, and approaches will use \
+        generated names: \(error)
+        """
+      )
+      nameResolver = .init(charts: [:], departureNames: nasrResult.departureNames)
     }
     await reportProgress(Self.dtppEnd, String(localized: "Loading d-TPP chart data…"))
 

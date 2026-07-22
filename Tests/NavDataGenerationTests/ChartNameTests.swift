@@ -38,7 +38,7 @@ struct ChartNameTests {
     let chart = try #require(ChartName("VOR RWY 05"))
     #expect(chart.families.contains(.vorRequiringDME))
     #expect(chart.families.contains(.vor))
-    #expect(chart.runway == "5")
+    #expect(chart.runway == "05")
   }
 
   @Test("a VOR/DME chart is not also a plain VOR chart")

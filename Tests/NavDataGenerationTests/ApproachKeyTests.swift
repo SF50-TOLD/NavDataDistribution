@@ -29,10 +29,10 @@ struct ApproachKeyTests {
     #expect(key == ApproachKey(family: .vor, runway: nil, designator: "A"))
   }
 
-  @Test("strips leading zeros so CIFP and chart runways agree")
-  func stripsLeadingZero() {
+  @Test("preserves the runway designator as written")
+  func preservesRunwayDesignator() {
     let key = ApproachKey(approachType: .vorTAC, identifier: "S05")
-    #expect(key == ApproachKey(family: .vorRequiringDME, runway: "5", designator: nil))
+    #expect(key == ApproachKey(family: .vorRequiringDME, runway: "05", designator: nil))
   }
 
   @Test("has no key for a non-approach record type")

@@ -1,4 +1,3 @@
-import Foundation
 import SwiftCIFP
 
 /// Identifies an instrument approach precisely enough to match a CIFP procedure
@@ -11,8 +10,8 @@ struct ApproachKey: Hashable, Sendable {
   /// The navigation aid the approach is built on.
   let family: ApproachFamily
 
-  /// Runway designator without the `RW` prefix and without leading zeros
-  /// (`"28R"`, `"5"`). Nil for circling approaches.
+  /// Runway designator without the `RW` prefix, stored exactly as written
+  /// (`"28R"`, `"05"`). Nil for circling approaches.
   let runway: String?
 
   /// The multiple indicator distinguishing same-runway approaches (`"Z"`), or
@@ -37,7 +36,7 @@ struct ApproachKey: Hashable, Sendable {
     if let match = remainder.wholeMatch(of: /(\d{1,2}[LCR]?)-?([A-Z])?/) {
       self.init(
         family: family,
-        runway: Self.normalizeRunway(String(match.1)),
+        runway: String(match.1),
         designator: match.2.map(String.init)
       )
     } else if let match = remainder.firstMatch(of: /-([A-Z])$/) {
@@ -52,11 +51,5 @@ struct ApproachKey: Hashable, Sendable {
     self.family = family
     self.runway = runway
     self.designator = designator
-  }
-
-  /// Drops leading zeros so CIFP's `"05"` and a chart's `"5"` compare equal.
-  static func normalizeRunway(_ runway: String) -> String {
-    let stripped = runway.drop(while: { $0 == "0" })
-    return stripped.isEmpty ? runway : String(stripped)
   }
 }

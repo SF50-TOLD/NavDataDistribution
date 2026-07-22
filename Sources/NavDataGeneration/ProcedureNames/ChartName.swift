@@ -1,5 +1,3 @@
-import Foundation
-
 /// A parsed d-TPP instrument approach chart title.
 ///
 /// Chart titles name the navaid families they serve, the runway they land on,
@@ -14,7 +12,8 @@ struct ChartName: Sendable {
   /// Every navaid family this chart serves.
   let families: Set<ApproachFamily>
 
-  /// Runway designator without leading zeros, or nil for a circling approach.
+  /// Runway designator stored exactly as written (`"28R"`, `"05"`), or nil for
+  /// a circling approach.
   let runway: String?
 
   /// Multiple indicator or circling designator.
@@ -41,7 +40,7 @@ struct ChartName: Sendable {
     var designator: String?
 
     if let match = body.firstMatch(of: /\bRWY\s+(\d{1,2}[LCR]?)/) {
-      runway = ApproachKey.normalizeRunway(String(match.1))
+      runway = String(match.1)
       body = String(body[body.startIndex..<match.range.lowerBound])
       designator = Self.multipleIndicator(in: body)
     } else if let match = body.firstMatch(of: /-([A-Z])\s*$/) {
@@ -66,6 +65,13 @@ struct ChartName: Sendable {
   /// The indicator's position varies — `ILS Z OR LOC RWY 28` puts it mid-title,
   /// `RNAV (GPS) Z RWY 19R` puts it last — so it is found as a standalone
   /// single-letter token rather than by position.
+  ///
+  /// The `"U"..."Z"` range reflects the FAA's practice of assigning multiple
+  /// indicators backward from `Z` (observed distribution: `Z`×898, `Y`×884,
+  /// `X`×79, `W`×25, `V`×4, `U`×3). The range does not extend toward `A`: the
+  /// single-letter tokens `A` and `B` that precede `RWY` in the corpus are
+  /// circling designators, not multiple indicators, and including them would
+  /// corrupt those charts.
   private static func multipleIndicator(in body: String) -> String? {
     body.split(whereSeparator: \.isWhitespace)
       .first { $0.count == 1 && ("U"..."Z").contains(String($0)) }
@@ -121,7 +127,7 @@ struct ChartName: Sendable {
   /// Demotes titles that share a key with a more canonical chart.
   private static func penalty(for name: String) -> Int {
     var penalty = 0
-    if name.contains(/\((SA )?CAT|PRM|CONVERGING|COPTER|VISUAL/) { penalty += 10 }
+    if name.contains(/\((SA )?CAT|PRM|CONVERGING|COPTER/) { penalty += 10 }
     if name.hasPrefix("HI-") { penalty += 5 }
     if name.contains(/\([^)]*\)\s*$/) && !name.contains("RNAV") { penalty += 3 }
     if name.contains("CONT.") { penalty += 20 }
