@@ -333,19 +333,22 @@ struct CIFPProcessor {
   /// - Parameters:
   ///   - icaoId: The ICAO identifier of the airport.
   ///   - cifpData: The parsed CIFP linked data.
-  /// - Returns: Array of departure procedures for the airport.
+  ///   - nameResolver: Resolves official FAA chart names, when available.
+  /// - Returns: Departure procedures for the airport and naming statistics.
   func extractDepartureProcedures(
     icaoId: String,
-    cifpData: CIFPData
-  ) async -> [AirportDataCodable.ProcedureCodable] {
+    cifpData: CIFPData,
+    nameResolver: ProcedureNameResolver?
+  ) async -> (procedures: [AirportDataCodable.ProcedureCodable], stats: NamingStats) {
     guard let cifpAirport = await cifpData.airports[icaoId] else {
-      return []
+      return ([], .init())
     }
 
     // Group all SID records by identifier to collect runway transitions and common routes
     let sidsByIdentifier = Dictionary(grouping: cifpAirport.sids, by: \.identifier)
 
     var procedures = [AirportDataCodable.ProcedureCodable]()
+    var stats = NamingStats()
 
     for (identifier, sids) in sidsByIdentifier {
       var segments = [AirportDataCodable.SegmentCodable]()
@@ -379,32 +382,40 @@ struct CIFPProcessor {
         )
       }
 
+      let name = nameResolver?.departureName(icao: icaoId, identifier: identifier)
+      stats.departuresTotal += 1
+      if name != nil { stats.departuresNamed += 1 }
+
       let procedure = AirportDataCodable.ProcedureCodable(
         type: "departure",
         identifier: identifier,
+        name: name,
         requiredClimbGradientFtPerNM: maxGradient,
         segments: segments.isEmpty ? nil : segments
       )
       procedures.append(procedure)
     }
 
-    return procedures.sorted { $0.identifier < $1.identifier }
+    return (procedures.sorted { $0.identifier < $1.identifier }, stats)
   }
 
   /// Extracts approach procedures for an airport from CIFP data.
   /// - Parameters:
   ///   - icaoId: The ICAO identifier of the airport.
   ///   - cifpData: The parsed CIFP linked data.
-  /// - Returns: Array of approach procedures for the airport.
+  ///   - nameResolver: Resolves official FAA chart names, when available.
+  /// - Returns: Approach procedures for the airport and naming statistics.
   func extractApproachProcedures(
     icaoId: String,
-    cifpData: CIFPData
-  ) async -> [AirportDataCodable.ProcedureCodable] {
+    cifpData: CIFPData,
+    nameResolver: ProcedureNameResolver?
+  ) async -> (procedures: [AirportDataCodable.ProcedureCodable], stats: NamingStats) {
     guard let cifpAirport = await cifpData.airports[icaoId] else {
-      return []
+      return ([], .init())
     }
 
     var procedures = [AirportDataCodable.ProcedureCodable]()
+    var stats = NamingStats()
     var processedIdentifiers = Set<String>()
 
     for approach in cifpAirport.approaches {
@@ -417,11 +428,24 @@ struct CIFPProcessor {
       guard !processedIdentifiers.contains(approach.identifier) else { continue }
       processedIdentifiers.insert(approach.identifier)
 
-      // Construct the full human-readable name
-      let name = Self.approachName(
-        type: approach.approachType.description,
+      // The key both names the approach and supplies its runway, so the two
+      // cannot disagree.
+      let key = ApproachKey(
+        approachType: approach.approachType,
         identifier: approach.identifier
       )
+
+      // Prefer the published chart title; fall back to a name built from CIFP data.
+      let officialName = key.flatMap { nameResolver?.approachName(icao: icaoId, key: $0) }
+      stats.approachesTotal += 1
+      if officialName != nil { stats.approachesNamed += 1 }
+
+      let name =
+        officialName
+        ?? Self.approachName(
+          type: approach.approachType.description,
+          identifier: approach.identifier
+        )
 
       // Extract missed approach legs
       let sortedMissedApproachLegs = approach.missedApproachLegs.sorted()
@@ -476,13 +500,13 @@ struct CIFPProcessor {
         type: "approach",
         identifier: approach.identifier,
         name: name,
-        runwayName: approach.runwayId?.removingRWPrefix(),
+        runwayName: key?.runway,
         segments: segments
       )
       procedures.append(procedure)
     }
 
-    return procedures.sorted { $0.identifier < $1.identifier }
+    return (procedures.sorted { $0.identifier < $1.identifier }, stats)
   }
 
   /// Extracts legs and calculates climb gradient for a SID.

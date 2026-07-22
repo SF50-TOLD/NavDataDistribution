@@ -59,6 +59,15 @@ let package = Package(
         .product(name: "ArgumentParser", package: "swift-argument-parser")
       ],
       swiftSettings: approachableConcurrency
+    ),
+    .testTarget(
+      name: "NavDataGenerationTests",
+      dependencies: [
+        "NavDataGeneration",
+        .product(name: "SwiftCIFP", package: "SwiftCIFP"),
+        .product(name: "SwiftNASR", package: "SwiftNASR")
+      ],
+      swiftSettings: approachableConcurrency
     )
   ],
   swiftLanguageModes: [.v6]

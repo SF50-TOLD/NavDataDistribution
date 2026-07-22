@@ -40,17 +40,18 @@ enum NavDataProcessorError: LocalizedError {
 ///
 /// The processor reports progress through the ``onProgress`` callback with
 /// 100 total units distributed across each major step. Unit allocations are
-/// derived from measured processing times (Release build, ~29K airports,
-/// ~627K obstacles, cycle 2026-02-19, total ~143 s):
+/// derived from measured processing times (Release build, ~29,269 airports,
+/// ~650,600 obstacles, cycle 2026-07-09, total ~50 s):
 ///
-/// | Step            | Time | Units | Cumulative |
-/// |-----------------|------|-------|------------|
-/// | NASR loading    |  29s |    20 |          20 |
-/// | OurAirports     |   2s |     2 |          22 |
-/// | CIFP            |   9s |     6 |          28 |
-/// | DOF             |  13s |     9 |          37 |
-/// | Merge           |  64s |    45 |          82 |
-/// | Write + compress|  18s |    18 |         100 |
+/// | Step             | Time | Units | Cumulative |
+/// |------------------|------|-------|------------|
+/// | NASR loading     |  12s |    24 |         24 |
+/// | OurAirports      |   2s |     4 |         28 |
+/// | CIFP             |   1s |     2 |         30 |
+/// | d-TPP            |  12s |    24 |         54 |
+/// | DOF              |   2s |     4 |         58 |
+/// | Merge            |  10s |    20 |         78 |
+/// | Write + compress |  11s |    22 |        100 |
 ///
 /// ## See Also
 ///
@@ -64,14 +65,15 @@ public struct NavDataProcessor: Sendable {
 
   /// Cumulative progress boundaries for each processing phase.
   ///
-  /// Derived from measured Release-build processing times (cycle 2026-02-19,
-  /// ~29K airports, ~627K obstacles, ~143 s total). See class-level doc for
-  /// the full timing table.
-  private static let nasrEnd: Int64 = 20
-  private static let ourAirportsEnd: Int64 = 22
-  private static let cifpEnd: Int64 = 28
-  private static let dofEnd: Int64 = 37
-  private static let mergeEnd: Int64 = 82
+  /// Derived from measured Release-build processing times (cycle 2026-07-09,
+  /// ~29,269 airports, ~650,600 obstacles, ~50 s total). See class-level doc
+  /// for the full timing table.
+  private static let nasrEnd: Int64 = 24
+  private static let ourAirportsEnd: Int64 = 28
+  private static let cifpEnd: Int64 = 30
+  private static let dtppEnd: Int64 = 54
+  private static let dofEnd: Int64 = 58
+  private static let mergeEnd: Int64 = 78
 
   /// The NASR cycle to download (e.g., 2501 for January 2025).
   let cycle: SwiftNASR.Cycle
@@ -200,7 +202,7 @@ public struct NavDataProcessor: Sendable {
     logger.notice("Loading NASR data for cycle \(cycle)…")
     await reportProgress(0, String(localized: "Loading NASR data…"))
     let nasrProcessor = NASRProcessor(logger: logger)
-    let nasrAirports = try await nasrProcessor.loadNASRData(
+    let nasrResult = try await nasrProcessor.loadNASRData(
       cycle: cycle,
       timezoneLookup: timezoneLookup
     ) { completed, total in
@@ -237,13 +239,39 @@ public struct NavDataProcessor: Sendable {
 
     try Task.checkCancellation()
 
-    // Load DOF data (cifpEnd → dofEnd)
-    let dofSpan = Self.dofEnd - Self.cifpEnd
+    // Load d-TPP chart names (cifpEnd → dtppEnd). Naming is a nicety, so a
+    // failure here degrades procedure names rather than failing the build.
+    let dtppSpan = Self.dtppEnd - Self.cifpEnd
+    logger.notice("Loading d-TPP chart data…")
+    await reportProgress(Self.cifpEnd, String(localized: "Loading d-TPP chart data…"))
+    let dtppLoader = DTPPLoader(logger: logger)
+    var nameResolver: ProcedureNameResolver?
+    do {
+      let charts = try await dtppLoader.loadCharts(cycle: cycle) { completed, total in
+        let mapped = Self.cifpEnd + Int64(Double(completed) / Double(total) * Double(dtppSpan))
+        await self.reportProgress(mapped, String(localized: "Loading d-TPP chart data…"))
+      }
+      nameResolver = .init(charts: charts, departureNames: nasrResult.departureNames)
+    } catch is CancellationError {
+      throw CancellationError()
+    } catch {
+      logger.warning(
+        """
+        Could not load d-TPP data; departures keep their NASR names, and approaches will use \
+        generated names: \(error)
+        """
+      )
+      nameResolver = .init(charts: [:], departureNames: nasrResult.departureNames)
+    }
+    await reportProgress(Self.dtppEnd, String(localized: "Loading d-TPP chart data…"))
+
+    // Load DOF data (dtppEnd → dofEnd)
+    let dofSpan = Self.dofEnd - Self.dtppEnd
     logger.notice("Loading DOF data…")
-    await reportProgress(Self.cifpEnd, String(localized: "Loading DOF data…"))
+    await reportProgress(Self.dtppEnd, String(localized: "Loading DOF data…"))
     let dofProcessor = DOFProcessor(logger: logger)
     let dofResult = try await dofProcessor.loadDOFData { completed, total in
-      let mapped = Self.cifpEnd + Int64(Double(completed) / Double(total) * Double(dofSpan))
+      let mapped = Self.dtppEnd + Int64(Double(completed) / Double(total) * Double(dofSpan))
       await self.reportProgress(mapped, String(localized: "Loading DOF data…"))
     }
     await reportProgress(Self.dofEnd, String(localized: "Loading DOF data…"))
@@ -254,11 +282,12 @@ public struct NavDataProcessor: Sendable {
     logger.notice("Merging and de-duplicating airport data…")
     await reportProgress(Self.dofEnd, String(localized: "Merging and de-duplicating airport data…"))
     let mergedAirports = await mergeAirports(
-      NASRAirports: nasrAirports,
+      NASRAirports: nasrResult.airports,
       ourAirports: ourAirports,
       timezoneLookup: timezoneLookup,
       cifpData: cifpResult.data,
-      cifpProcessor: cifpProcessor
+      cifpProcessor: cifpProcessor,
+      nameResolver: nameResolver
     )
     await reportProgress(Self.mergeEnd, String(localized: "Merging complete"))
 
@@ -322,10 +351,12 @@ public struct NavDataProcessor: Sendable {
     ourAirports: [OurAirportData],
     timezoneLookup: SwiftTimeZoneLookup,
     cifpData: CIFPData?,
-    cifpProcessor: CIFPProcessor
+    cifpProcessor: CIFPProcessor,
+    nameResolver: ProcedureNameResolver?
   ) async -> [AirportDataCodable.AirportCodable] {
     var mergedAirports = [AirportDataCodable.AirportCodable]()
     var NASRLocationIds = Set<String>()
+    var stats = NamingStats()
 
     // Add all NASR airports first (they have priority)
     for airport in NASRAirports {
@@ -334,13 +365,17 @@ public struct NavDataProcessor: Sendable {
       if let cifpData, let icaoId = airport.ICAO_ID {
         let departures = await cifpProcessor.extractDepartureProcedures(
           icaoId: icaoId,
-          cifpData: cifpData
+          cifpData: cifpData,
+          nameResolver: nameResolver
         )
         let approaches = await cifpProcessor.extractApproachProcedures(
           icaoId: icaoId,
-          cifpData: cifpData
+          cifpData: cifpData,
+          nameResolver: nameResolver
         )
-        let combined = departures + approaches
+        stats += departures.stats
+        stats += approaches.stats
+        let combined = departures.procedures + approaches.procedures
         procedures = combined.isEmpty ? nil : combined
       } else {
         procedures = nil
@@ -421,13 +456,17 @@ public struct NavDataProcessor: Sendable {
       if let cifpData, let icaoId = ourAirport.ICAO_ID {
         let departures = await cifpProcessor.extractDepartureProcedures(
           icaoId: icaoId,
-          cifpData: cifpData
+          cifpData: cifpData,
+          nameResolver: nameResolver
         )
         let approaches = await cifpProcessor.extractApproachProcedures(
           icaoId: icaoId,
-          cifpData: cifpData
+          cifpData: cifpData,
+          nameResolver: nameResolver
         )
-        let combined = departures + approaches
+        stats += departures.stats
+        stats += approaches.stats
+        let combined = departures.procedures + approaches.procedures
         procedures = combined.isEmpty ? nil : combined
       } else {
         procedures = nil
@@ -455,6 +494,19 @@ public struct NavDataProcessor: Sendable {
 
     logger.notice("Added \(ourAirportsAdded) airports from OurAirports (non-duplicates)")
     logger.notice("Total airports after merge: \(mergedAirports.count)")
+
+    logger.notice(
+      """
+      Named \(stats.approachesNamed)/\(stats.approachesTotal) approaches \
+      (\(NamingStats.percentage(stats.approachesNamed, of: stats.approachesTotal)))
+      """
+    )
+    logger.notice(
+      """
+      Named \(stats.departuresNamed)/\(stats.departuresTotal) departures \
+      (\(NamingStats.percentage(stats.departuresNamed, of: stats.departuresTotal)))
+      """
+    )
 
     return mergedAirports
   }
