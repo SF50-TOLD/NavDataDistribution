@@ -57,19 +57,18 @@ struct DOFProcessor {
 
     // Parse DOF
     logger.notice("Parsing DOF data…")
-    let dof = try DOF(
-      data: dofData,
-      progressHandler: { progress in
-        pollProgress(
-          progress,
-          mappingTo: Self.downloadProgressEnd..<Self.parseProgressEnd,
-          onProgress: onProgress
-        )
-      },
-      errorCallback: { error, lineNumber in
-        self.logger.debug("DOF parse error at line \(lineNumber): \(error)")
-      }
-    )
+    let dof = try await withPolledProgress(
+      mappingTo: Self.downloadProgressEnd..<Self.parseProgressEnd,
+      onProgress: onProgress
+    ) { progressHandler in
+      try DOF(
+        data: dofData,
+        progressHandler: progressHandler,
+        errorCallback: { error, lineNumber in
+          self.logger.debug("DOF parse error at line \(lineNumber): \(error)")
+        }
+      )
+    }
     await onProgress?(Self.parseProgressEnd, 100)
 
     // Convert to codable format

@@ -279,23 +279,22 @@ struct CIFPProcessor {
 
     // Parse CIFP
     logger.notice("Parsing CIFP data…")
-    let cifp = try CIFP(
-      data: cifpData,
-      progressHandler: { progress in
-        pollProgress(
-          progress,
-          mappingTo: Self.downloadProgressEnd..<Self.parseProgressEnd,
-          onProgress: onProgress
-        )
-      },
-      errorCallback: { error, lineNumber in
-        if let lineNumber {
-          self.logger.debug("CIFP parse error at line \(lineNumber): \(error)")
-        } else {
-          self.logger.debug("CIFP parse error: \(error)")
+    let cifp = try await withPolledProgress(
+      mappingTo: Self.downloadProgressEnd..<Self.parseProgressEnd,
+      onProgress: onProgress
+    ) { progressHandler in
+      try CIFP(
+        data: cifpData,
+        progressHandler: progressHandler,
+        errorCallback: { error, lineNumber in
+          if let lineNumber {
+            self.logger.debug("CIFP parse error at line \(lineNumber): \(error)")
+          } else {
+            self.logger.debug("CIFP parse error: \(error)")
+          }
         }
-      }
-    )
+      )
+    }
     await onProgress?(Self.parseProgressEnd, 100)
 
     try Task.checkCancellation()

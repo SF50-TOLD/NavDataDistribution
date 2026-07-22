@@ -39,19 +39,18 @@ enum NavDataProcessorError: LocalizedError {
 /// ## Progress Tracking
 ///
 /// The processor reports progress through the ``onProgress`` callback with
-/// 100 total units distributed across each major step. Unit allocations are
-/// derived from measured processing times (Release build, ~29,269 airports,
-/// ~650,600 obstacles, cycle 2026-07-09, total ~50 s):
+/// 100 total units distributed across each major step in proportion to how long
+/// that step takes:
 ///
-/// | Step             | Time | Units | Cumulative |
-/// |------------------|------|-------|------------|
-/// | NASR loading     |  12s |    24 |         24 |
-/// | OurAirports      |   2s |     4 |         28 |
-/// | CIFP             |   1s |     2 |         30 |
-/// | d-TPP            |  12s |    24 |         54 |
-/// | DOF              |   2s |     4 |         58 |
-/// | Merge            |  10s |    20 |         78 |
-/// | Write + compress |  11s |    22 |        100 |
+/// | Step             | Units | Cumulative |
+/// |------------------|-------|------------|
+/// | NASR loading     |    28 |         28 |
+/// | OurAirports      |     3 |         31 |
+/// | CIFP             |     4 |         35 |
+/// | d-TPP            |    13 |         48 |
+/// | DOF              |     5 |         53 |
+/// | Merge            |    21 |         74 |
+/// | Write + compress |    26 |        100 |
 ///
 /// ## See Also
 ///
@@ -64,16 +63,12 @@ public struct NavDataProcessor: Sendable {
   // MARK: - Progress Phase Boundaries
 
   /// Cumulative progress boundaries for each processing phase.
-  ///
-  /// Derived from measured Release-build processing times (cycle 2026-07-09,
-  /// ~29,269 airports, ~650,600 obstacles, ~50 s total). See class-level doc
-  /// for the full timing table.
-  private static let nasrEnd: Int64 = 24
-  private static let ourAirportsEnd: Int64 = 28
-  private static let cifpEnd: Int64 = 30
-  private static let dtppEnd: Int64 = 54
-  private static let dofEnd: Int64 = 58
-  private static let mergeEnd: Int64 = 78
+  private static let nasrEnd: Int64 = 28
+  private static let ourAirportsEnd: Int64 = 31
+  private static let cifpEnd: Int64 = 35
+  private static let dtppEnd: Int64 = 48
+  private static let dofEnd: Int64 = 53
+  private static let mergeEnd: Int64 = 74
 
   /// The NASR cycle to download (e.g., 2501 for January 2025).
   let cycle: SwiftNASR.Cycle
