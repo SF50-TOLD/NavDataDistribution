@@ -63,6 +63,12 @@ struct DTPPLoader {
   /// Darwin's `XMLParser` skips the mark, but swift-corelibs-foundation's
   /// treats it as content before the prolog and fails the whole document with
   /// `NSXMLParserInternalError`. Stripping it keeps Linux and macOS in step.
+  /// Renders the first few bytes as hex, to identify a payload that is not the
+  /// XML the parser expects — gzip (`1f8b`) or a byte order mark (`efbbbf`).
+  private static func leadingBytes(of data: Data) -> String {
+    data.prefix(4).map { String(format: "%02x", $0) }.joined()
+  }
+
   private static func strippingByteOrderMark(from data: Data) -> Data {
     let byteOrderMark = Data([0xEF, 0xBB, 0xBF])
     guard data.starts(with: byteOrderMark) else { return data }
@@ -99,7 +105,9 @@ struct DTPPLoader {
 
     try Task.checkCancellation()
 
-    logger.notice("Parsing d-TPP metafile…")
+    logger.notice(
+      "Parsing d-TPP metafile (\(data.count) bytes, starting \(Self.leadingBytes(of: data)))…"
+    )
     let index = try parseCharts(from: data)
     await onProgress?(100, 100)
 
@@ -114,8 +122,9 @@ struct DTPPLoader {
     parser.delegate = delegate
 
     guard parser.parse() else {
+      let reason = parser.parserError?.localizedDescription ?? "unknown error"
       throw DTPPLoaderError.parseFailed(
-        parser.parserError?.localizedDescription ?? "unknown error"
+        "\(reason) at line \(parser.lineNumber), column \(parser.columnNumber)"
       )
     }
     return delegate.index
