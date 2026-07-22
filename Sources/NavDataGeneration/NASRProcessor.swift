@@ -20,6 +20,68 @@ enum NASRProcessorError: LocalizedError {
   }
 }
 
+/// Builds the bridge from CIFP SID identifier to official procedure name.
+///
+/// NASR's `STARDP` records pair a computer code with the procedure's published
+/// name — `"GAPP7.GAP"` with `"GAP SEVEN"`. The portion of the computer code
+/// before the exit fix is the CIFP procedure identifier, which makes this the
+/// authoritative mapping for departures. Reconstructing it from chart titles
+/// alone is impossible for navaid-named SIDs, where the chart reads
+/// `VENTURA EIGHT` but CIFP reads `VTU8`.
+///
+/// Transitions are excluded: SwiftNASR nests them under
+/// `DepartureArrivalProcedure/transitions`, so reading only the top-level name
+/// keeps titles like `"VENTURA TRANSITION"` out of the index.
+enum DepartureNameIndex {
+  private static let unassignedCode = "NOT ASSIGNED"
+
+  /// Indexes departure procedure names by CIFP identifier.
+  /// - Parameter procedures: All parsed NASR departure and arrival procedures.
+  /// - Returns: Official names keyed by CIFP procedure identifier.
+  static func build(from procedures: [DepartureArrivalProcedure]) -> [String: String] {
+    index(
+      codesAndNames: procedures.lazy
+        .filter { $0.procedureType == .DP }
+        .map { (code: $0.computerCode, name: $0.name) }
+    )
+  }
+
+  /// Indexes official names by the CIFP identifier embedded in each computer
+  /// code.
+  ///
+  /// A usable code pairs the CIFP procedure identifier with an exit fix, as in
+  /// `"GAPP7.GAP"`. Codes without that separator, and the literal
+  /// `"NOT ASSIGNED"`, name no procedure and are skipped.
+  /// - Parameter codesAndNames: Computer code and name for each departure.
+  /// - Returns: Official names keyed by CIFP procedure identifier.
+  static func index(
+    codesAndNames: some Sequence<(code: String?, name: String?)>
+  ) -> [String: String] {
+    var index = [String: String]()
+
+    for (code, name) in codesAndNames {
+      guard let code, code != Self.unassignedCode,
+        let name, !name.isEmpty,
+        let identifier = code.split(separator: ".").first, identifier != code[...]
+      else { continue }
+
+      index[String(identifier)] = name
+    }
+
+    return index
+  }
+}
+
+/// The airports and departure names parsed from a NASR cycle.
+struct NASRResult: Sendable {
+
+  /// Airports converted to the application's codable format.
+  let airports: [AirportDataCodable.AirportCodable]
+
+  /// Official departure procedure names keyed by CIFP procedure identifier.
+  let departureNames: [String: String]
+}
+
 /// Processes FAA NASR (National Airspace System Resources) airport data.
 ///
 /// ``NASRProcessor`` handles downloading and parsing FAA NASR data using SwiftNASR,
@@ -33,11 +95,13 @@ enum NASRProcessorError: LocalizedError {
 struct NASRProcessor {
   // Progress allocation within NASR processing (out of 100):
   // - Download: 0-22
-  // - Parse airports: 22-98
-  // - Parse ILS: 98-100
+  // - Parse airports: 22-94
+  // - Parse ILS: 94-96
+  // - Parse departure procedures: 96-100
   private static let downloadProgressEnd = 22
-  private static let airportsProgressEnd = 98
-  private static let ilsProgressEnd = 100
+  private static let airportsProgressEnd = 94
+  private static let ilsProgressEnd = 96
+  private static let departureProceduresProgressEnd = 100
 
   /// Logger for status messages and errors.
   let logger: Logger
@@ -60,12 +124,12 @@ struct NASRProcessor {
   ///   - cycle: The NASR cycle to download.
   ///   - timezoneLookup: Timezone lookup database for airport locations.
   ///   - onProgress: Callback for progress updates (completed, total).
-  /// - Returns: Array of parsed airports in codable format.
+  /// - Returns: The parsed airports and departure procedure names.
   func loadNASRData(
     cycle: SwiftNASR.Cycle,
     timezoneLookup: SwiftTimeZoneLookup,
     onProgress: (@Sendable (Int, Int) async -> Void)? = nil
-  ) async throws -> [AirportDataCodable.AirportCodable] {
+  ) async throws -> NASRResult {
     await onProgress?(0, 100)
 
     guard let nasr = NASR.fromInternetToMemory(activeAt: cycle.effectiveDate) else {
@@ -117,9 +181,30 @@ struct NASRProcessor {
     )
     await onProgress?(Self.ilsProgressEnd, 100)
 
+    try Task.checkCancellation()
+
+    logger.notice("Parsing NASR departure procedures…")
+    try await nasr.parse(
+      .departureArrivalProceduresComplete,
+      withProgress: { progress in
+        pollProgress(
+          progress,
+          mappingTo: Self.ilsProgressEnd..<Self.departureProceduresProgressEnd,
+          onProgress: onProgress
+        )
+      },
+      errorHandler: { error in self.handleParseError(error, context: "departure procedure") }
+    )
+    await onProgress?(Self.departureProceduresProgressEnd, 100)
+
     let NASRData = await nasr.data
+    let departureNames = DepartureNameIndex.build(
+      from: await NASRData.departureArrivalProceduresComplete ?? []
+    )
+    logger.notice("Loaded \(departureNames.count) NASR departure procedure names")
+
     guard let airports = await NASRData.airports else {
-      return []
+      return .init(airports: [], departureNames: departureNames)
     }
 
     // Build ILS lookup dictionary keyed by (airportSiteNumber, runwayEndId)
@@ -202,7 +287,7 @@ struct NASRProcessor {
       codableAirports.append(codableAirport)
     }
 
-    return codableAirports
+    return .init(airports: codableAirports, departureNames: departureNames)
   }
 
   /// Logs a SwiftNASR record-parse problem and tells the parser to keep going.

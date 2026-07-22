@@ -200,7 +200,7 @@ public struct NavDataProcessor: Sendable {
     logger.notice("Loading NASR data for cycle \(cycle)…")
     await reportProgress(0, String(localized: "Loading NASR data…"))
     let nasrProcessor = NASRProcessor(logger: logger)
-    let nasrAirports = try await nasrProcessor.loadNASRData(
+    let nasrResult = try await nasrProcessor.loadNASRData(
       cycle: cycle,
       timezoneLookup: timezoneLookup
     ) { completed, total in
@@ -254,7 +254,7 @@ public struct NavDataProcessor: Sendable {
     logger.notice("Merging and de-duplicating airport data…")
     await reportProgress(Self.dofEnd, String(localized: "Merging and de-duplicating airport data…"))
     let mergedAirports = await mergeAirports(
-      NASRAirports: nasrAirports,
+      NASRAirports: nasrResult.airports,
       ourAirports: ourAirports,
       timezoneLookup: timezoneLookup,
       cifpData: cifpResult.data,
