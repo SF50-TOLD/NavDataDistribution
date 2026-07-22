@@ -57,6 +57,18 @@ struct DTPPLoader {
   /// Logger for status messages and errors.
   let logger: Logger
 
+  /// Drops a leading UTF-8 byte order mark, which the FAA prepends to the
+  /// metafile.
+  ///
+  /// Darwin's `XMLParser` skips the mark, but swift-corelibs-foundation's
+  /// treats it as content before the prolog and fails the whole document with
+  /// `NSXMLParserInternalError`. Stripping it keeps Linux and macOS in step.
+  private static func strippingByteOrderMark(from data: Data) -> Data {
+    let byteOrderMark = Data([0xEF, 0xBB, 0xBF])
+    guard data.starts(with: byteOrderMark) else { return data }
+    return data.dropFirst(byteOrderMark.count)
+  }
+
   /// Downloads and parses the metafile for the given cycle.
   /// - Parameters:
   ///   - cycle: The cycle to fetch charts for.
@@ -95,10 +107,10 @@ struct DTPPLoader {
     return index
   }
 
-  /// Streams the metafile, collecting approach and departure records.
+  /// Parses the metafile, collecting approach and departure records.
   private func parseCharts(from data: Data) throws -> DTPPIndex {
     let delegate = MetafileDelegate()
-    let parser = XMLParser(data: data)
+    let parser = XMLParser(data: Self.strippingByteOrderMark(from: data))
     parser.delegate = delegate
 
     guard parser.parse() else {
