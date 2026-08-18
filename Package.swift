@@ -29,7 +29,7 @@ let package = Package(
     .package(url: "https://github.com/RISCfuture/SwiftDOF", from: "1.2.0"),
     .package(url: "https://github.com/patrick-zippenfenig/SwiftTimeZoneLookup", from: "1.0.8"),
     .package(url: "https://github.com/weichsel/ZIPFoundation", from: "0.9.20"),
-    .package(url: "https://github.com/RISCfuture/StreamingLZMA", from: "1.3.1"),
+    .package(url: "https://github.com/RISCfuture/StreamingLZMA", from: "2.0.0"),
     .package(url: "https://github.com/RISCfuture/StreamingCSV", from: "2.1.0"),
     .package(url: "https://github.com/apple/swift-log", from: "1.14.0"),
     .package(url: "https://github.com/apple/swift-argument-parser", from: "1.8.2")

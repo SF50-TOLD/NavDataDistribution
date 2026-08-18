@@ -1,5 +1,5 @@
 {
-  "originHash" : "36064053ae460a44da804e04a14f618e4442a88860fba9c1ffbdc6df5fe3b256",
+  "originHash" : "420cedbb6d1a920b81a2b04c6cb47e56d3168b1276d05dfbfcadf5635e319d85",
   "pins" : [
     {
       "identity" : "navdata",
@@ -24,8 +24,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/RISCfuture/StreamingLZMA",
       "state" : {
-        "revision" : "51e43c72c0a337d05d1546cc549e31938750b79d",
-        "version" : "1.3.1"
+        "revision" : "8b6801824ef33d18e31ffbfda568931951e8d10e",
+        "version" : "2.0.0"
       }
     },
     {
