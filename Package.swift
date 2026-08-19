@@ -32,7 +32,8 @@ let package = Package(
     .package(url: "https://github.com/RISCfuture/StreamingLZMA", from: "2.0.0"),
     .package(url: "https://github.com/RISCfuture/StreamingCSV", from: "2.1.0"),
     .package(url: "https://github.com/apple/swift-log", from: "1.14.0"),
-    .package(url: "https://github.com/apple/swift-argument-parser", from: "1.8.2")
+    .package(url: "https://github.com/apple/swift-argument-parser", from: "1.8.2"),
+    .package(url: "https://github.com/apple/swift-docc-plugin", from: "1.5.0")
   ],
   targets: [
     .target(

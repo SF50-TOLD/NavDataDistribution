@@ -1,5 +1,5 @@
 {
-  "originHash" : "420cedbb6d1a920b81a2b04c6cb47e56d3168b1276d05dfbfcadf5635e319d85",
+  "originHash" : "f16bd61f2cb4b2a35784c7f0ff8d27294e9563d23ac298aba8a8e8fe0a568d28",
   "pins" : [
     {
       "identity" : "navdata",
@@ -35,6 +35,24 @@
       "state" : {
         "revision" : "6a52f3251125d74daf04fcbd5e6f08a75d074382",
         "version" : "1.8.2"
+      }
+    },
+    {
+      "identity" : "swift-docc-plugin",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/apple/swift-docc-plugin",
+      "state" : {
+        "revision" : "647c708be89f834fa6a6d4945442793a77ddf5b6",
+        "version" : "1.5.0"
+      }
+    },
+    {
+      "identity" : "swift-docc-symbolkit",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/swiftlang/swift-docc-symbolkit",
+      "state" : {
+        "revision" : "b45d1f2ed151d057b54504d653e0da5552844e34",
+        "version" : "1.0.0"
       }
     },
     {

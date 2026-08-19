@@ -51,13 +51,6 @@ enum NavDataProcessorError: LocalizedError {
 /// | DOF              |     5 |         53 |
 /// | Merge            |    21 |         74 |
 /// | Write + compress |    26 |        100 |
-///
-/// ## See Also
-///
-/// - ``NASRProcessor``
-/// - ``CIFPProcessor``
-/// - ``DOFProcessor``
-/// - ``OurAirportsLoader``
 public struct NavDataProcessor: Sendable {
 
   // MARK: - Progress Phase Boundaries
