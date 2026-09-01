@@ -22,6 +22,14 @@ jobs:
         run: |
           apt-get update
           apt-get install -y liblzma-dev pkg-config
+      - name: Cache SwiftPM build products
+        uses: actions/cache@v6
+        with:
+          path: |
+            .build
+            ~/.cache/org.swift.swiftpm
+            ~/Library/Caches/org.swift.swiftpm
+          key: swiftpm-build-ubuntu-latest-swift6.3-${{ hashFiles('Package.resolved') }}
       - name: Build
         run: swift build -v
   test:
@@ -35,6 +43,14 @@ jobs:
         run: |
           apt-get update
           apt-get install -y liblzma-dev pkg-config
+      - name: Cache SwiftPM build products
+        uses: actions/cache@v6
+        with:
+          path: |
+            .build
+            ~/.cache/org.swift.swiftpm
+            ~/Library/Caches/org.swift.swiftpm
+          key: swiftpm-test-ubuntu-latest-swift6.3-${{ hashFiles('Package.resolved') }}
       - name: Test
         run: swift test -v
   docs:
@@ -48,6 +64,14 @@ jobs:
         run: |
           apt-get update
           apt-get install -y liblzma-dev pkg-config
+      - name: Cache SwiftPM build products
+        uses: actions/cache@v6
+        with:
+          path: |
+            .build
+            ~/.cache/org.swift.swiftpm
+            ~/Library/Caches/org.swift.swiftpm
+          key: swiftpm-docs-ubuntu-latest-swift6.3-${{ hashFiles('Package.resolved') }}
       - name: Build documentation
         run: |
           swift package --allow-writing-to-directory "$RUNNER_TEMP/docs" \
