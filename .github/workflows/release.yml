@@ -36,6 +36,14 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y liblzma-dev pkg-config
+      - name: Cache SwiftPM build products
+        uses: actions/cache@v6
+        with:
+          path: |
+            .build
+            ~/.cache/org.swift.swiftpm
+            ~/Library/Caches/org.swift.swiftpm
+          key: swiftpm-release-ubuntu-latest-swift6.3-${{ hashFiles('Package.resolved') }}
       - name: Build generator
         run: swift build -c release
       - name: Publish cycles
