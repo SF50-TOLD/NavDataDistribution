@@ -142,7 +142,9 @@ struct NASRProcessor {
       mappingTo: 0..<Self.downloadProgressEnd,
       onProgress: onProgress
     ) { progressHandler in
-      try await nasr.load(withProgress: progressHandler)
+      try await withRetries(logger: logger) {
+        try await nasr.load(withProgress: progressHandler)
+      }
     }
     await onProgress?(Self.downloadProgressEnd, 100)
 

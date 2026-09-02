@@ -223,8 +223,12 @@ struct OurAirportsLoader {
     await onProgress?(0, 2)
 
     // Download CSV files
-    let (airportsData, _) = try await URLSession.shared.data(from: Self.airportsURL)
-    let (runwaysData, _) = try await URLSession.shared.data(from: Self.runwaysURL)
+    let airportsData = try await withRetries(logger: logger) {
+      try await URLSession.shared.data(from: Self.airportsURL).0
+    }
+    let runwaysData = try await withRetries(logger: logger) {
+      try await URLSession.shared.data(from: Self.runwaysURL).0
+    }
     await onProgress?(1, 2)
 
     logger.notice("Parsing OurAirports CSVs…")

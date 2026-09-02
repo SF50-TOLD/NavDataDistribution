@@ -1,5 +1,5 @@
 {
-  "originHash" : "f16bd61f2cb4b2a35784c7f0ff8d27294e9563d23ac298aba8a8e8fe0a568d28",
+  "originHash" : "c7daa59f9fcfa0d1fe3f79aa2a7ef0e3f3f885cb3f268d6c8857236f1613a098",
   "pins" : [
     {
       "identity" : "navdata",
@@ -105,8 +105,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/RISCfuture/SwiftNASR",
       "state" : {
-        "revision" : "fba98e390d7ff0f87ad6543f4de4f2041db1c722",
-        "version" : "4.1.0"
+        "revision" : "d1d1865d9b114cd60dd51b479536eff555d3b396",
+        "version" : "4.1.1"
       }
     },
     {

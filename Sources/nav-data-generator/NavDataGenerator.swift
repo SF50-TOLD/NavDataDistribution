@@ -83,6 +83,27 @@ struct NavDataGenerator: AsyncParsableCommand {
   // MARK: - Instance Methods
 
   func run() async throws {
+    do {
+      try await generate()
+    } catch {
+      report(error)
+      throw ExitCode.failure
+    }
+  }
+
+  /// Writes everything known about a failure to standard error.
+  ///
+  /// ArgumentParser reports a thrown error with `localizedDescription` alone,
+  /// which drops the failure reason — the part naming the HTTP response behind
+  /// a refused download, for instance. Reporting the full detail here and
+  /// exiting with `ExitCode.failure` keeps it and leaves ArgumentParser nothing
+  /// of its own to print.
+  /// - Parameter error: The failure to report.
+  private func report(_ error: any Swift.Error) {
+    FileHandle.standardError.write(Data("Error: \(detailedDescription(of: error))\n".utf8))
+  }
+
+  private func generate() async throws {
     LoggingSystem.bootstrap { label in
       var handler = StreamLogHandler.standardOutput(label: label)
       handler.logLevel = .notice

@@ -41,14 +41,16 @@ struct DOFProcessor {
     logger.notice("Downloading DOF data from \(Self.dofURL)…")
 
     // Download the ZIP file
-    let (downloadedData, response) = try await URLSession.shared.data(from: Self.dofURL)
-    await onProgress?(Self.downloadProgressEnd, 100)
-
-    if let httpResponse = response as? HTTPURLResponse,
-      !(200..<300).contains(httpResponse.statusCode)
-    {
-      throw DOFProcessorError.downloadFailed(httpResponse.statusCode)
+    let downloadedData = try await withRetries(logger: logger) {
+      let (downloadedData, response) = try await URLSession.shared.data(from: Self.dofURL)
+      if let httpResponse = response as? HTTPURLResponse,
+        !(200..<300).contains(httpResponse.statusCode)
+      {
+        throw DOFProcessorError.downloadFailed(httpResponse.statusCode)
+      }
+      return downloadedData
     }
+    await onProgress?(Self.downloadProgressEnd, 100)
 
     try Task.checkCancellation()
 

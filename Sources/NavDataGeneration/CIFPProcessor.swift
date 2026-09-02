@@ -263,14 +263,16 @@ struct CIFPProcessor {
     logger.notice("Downloading CIFP data from \(cifpURL)…")
 
     // Download the ZIP file
-    let (downloadedData, response) = try await URLSession.shared.data(from: cifpURL)
-    await onProgress?(Self.downloadProgressEnd, 100)
-
-    if let httpResponse = response as? HTTPURLResponse,
-      !(200..<300).contains(httpResponse.statusCode)
-    {
-      throw CIFPProcessorError.downloadFailed(httpResponse.statusCode)
+    let downloadedData = try await withRetries(logger: logger) {
+      let (downloadedData, response) = try await URLSession.shared.data(from: cifpURL)
+      if let httpResponse = response as? HTTPURLResponse,
+        !(200..<300).contains(httpResponse.statusCode)
+      {
+        throw CIFPProcessorError.downloadFailed(httpResponse.statusCode)
+      }
+      return downloadedData
     }
+    await onProgress?(Self.downloadProgressEnd, 100)
 
     try Task.checkCancellation()
 
