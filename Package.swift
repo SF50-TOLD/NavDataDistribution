@@ -1,11 +1,15 @@
-// swift-tools-version: 6.2
+// swift-tools-version: 6.3
 // The swift-tools-version declares the minimum version of Swift required to build this package.
 
 import PackageDescription
 
-let approachableConcurrency: [SwiftSetting] = [
+let upcomingFeatures: [SwiftSetting] = [
   .enableUpcomingFeature("NonisolatedNonsendingByDefault"),
-  .enableUpcomingFeature("InferIsolatedConformances")
+  .enableUpcomingFeature("InferIsolatedConformances"),
+  .enableUpcomingFeature("ImmutableWeakCaptures"),
+  .enableUpcomingFeature("MemberImportVisibility"),
+  .enableUpcomingFeature("ExistentialAny"),
+  .enableUpcomingFeature("InternalImportsByDefault")
 ]
 
 let package = Package(
@@ -49,7 +53,7 @@ let package = Package(
         .product(name: "StreamingCSV", package: "StreamingCSV"),
         .product(name: "Logging", package: "swift-log")
       ],
-      swiftSettings: approachableConcurrency
+      swiftSettings: upcomingFeatures
     ),
     .executableTarget(
       name: "nav-data-generator",
@@ -59,7 +63,7 @@ let package = Package(
         .product(name: "Logging", package: "swift-log"),
         .product(name: "ArgumentParser", package: "swift-argument-parser")
       ],
-      swiftSettings: approachableConcurrency
+      swiftSettings: upcomingFeatures
     ),
     .testTarget(
       name: "NavDataGenerationTests",
@@ -68,7 +72,7 @@ let package = Package(
         .product(name: "SwiftCIFP", package: "SwiftCIFP"),
         .product(name: "SwiftNASR", package: "SwiftNASR")
       ],
-      swiftSettings: approachableConcurrency
+      swiftSettings: upcomingFeatures
     )
   ],
   swiftLanguageModes: [.v6]
