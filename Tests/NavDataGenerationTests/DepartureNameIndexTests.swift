@@ -4,10 +4,10 @@ import Testing
 
 private typealias CodeAndName = (code: String?, name: String?)
 
-@Suite("DepartureNameIndex")
-struct DepartureNameIndexTests {
-  @Test("keys the official name by the CIFP identifier in the computer code")
-  func indexesByComputerCodeRoot() {
+@Suite
+struct `DepartureNameIndex tests` {
+  @Test
+  func `keys the official name by the CIFP identifier in the computer code`() {
     let codesAndNames: [CodeAndName] = [
       (code: "SSTIK5.SSTIK", name: "SSTIK FIVE"),
       (code: "GAPP7.GAP", name: "GAP SEVEN"),
@@ -19,8 +19,8 @@ struct DepartureNameIndexTests {
     #expect(index["VTU8"] == "VENTURA EIGHT")
   }
 
-  @Test("skips unassigned codes, codes without an exit fix, and missing fields")
-  func skipsUnusableRecords() {
+  @Test
+  func `skips unassigned codes, codes without an exit fix, and missing fields`() {
     let codesAndNames: [CodeAndName] = [
       (code: "NOT ASSIGNED", name: "SOMETHING"),
       (code: "NOEXITFIX", name: "NO EXIT FIX"),
