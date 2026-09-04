@@ -3,8 +3,8 @@ import Testing
 
 @testable import NavDataGeneration
 
-@Suite("ProcedureNameResolver")
-struct ProcedureNameResolverTests {
+@Suite
+struct `ProcedureNameResolver tests` {
   private let resolver = ProcedureNameResolver(
     charts: [
       "KSFO": [
@@ -26,24 +26,24 @@ struct ProcedureNameResolverTests {
     return resolver.approachName(icao: icao, key: key)
   }
 
-  @Test("names an ILS approach with its combined chart title")
-  func namesILS() {
+  @Test
+  func `names an ILS approach with its combined chart title`() {
     #expect(
       name("KSFO", .ils, "I28L")
         == "ILS OR LOC RWY 28L"
     )
   }
 
-  @Test("names a localizer approach with the same combined chart")
-  func namesLocalizer() {
+  @Test
+  func `names a localizer approach with the same combined chart`() {
     #expect(
       name("KSFO", .localizerOnly, "L28L")
         == "ILS OR LOC RWY 28L"
     )
   }
 
-  @Test("distinguishes RNAV and RNP approaches on the same runway")
-  func distinguishesRNAVFromRNP() {
+  @Test
+  func `distinguishes RNAV and RNP approaches on the same runway`() {
     #expect(
       name("KSFO", .rnav, "R28RZ")
         == "RNAV (GPS) Z RWY 28R"
@@ -54,25 +54,25 @@ struct ProcedureNameResolverTests {
     )
   }
 
-  @Test("returns nil for an airport with no charts")
-  func missesUnchartedAirport() {
+  @Test
+  func `returns nil for an airport with no charts`() {
     #expect(
       name("EGLL", .ils, "I27R") == nil
     )
   }
 
-  @Test("joins a departure to its full chart title")
-  func joinsDepartureToChart() {
+  @Test
+  func `joins a departure to its full chart title`() {
     #expect(resolver.departureName(icao: "KSFO", identifier: "SSTIK5") == "SSTIK FIVE (RNAV)")
   }
 
-  @Test("falls back to the NASR name when no chart matches")
-  func fallsBackToNASRName() {
+  @Test
+  func `falls back to the NASR name when no chart matches`() {
     #expect(resolver.departureName(icao: "KSFO", identifier: "ZZZZ1") == "NOWHERE ONE")
   }
 
-  @Test("returns nil for a departure NASR does not name")
-  func missesUnknownDeparture() {
+  @Test
+  func `returns nil for a departure NASR does not name`() {
     #expect(resolver.departureName(icao: "KSFO", identifier: "NOPE9") == nil)
   }
 }

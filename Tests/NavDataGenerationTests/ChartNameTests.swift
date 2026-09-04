@@ -2,74 +2,74 @@ import Testing
 
 @testable import NavDataGeneration
 
-@Suite("ChartName")
-struct ChartNameTests {
-  @Test("a combined ILS/LOC chart answers both families")
-  func combinedILSAndLocalizer() throws {
+@Suite
+struct `ChartName tests` {
+  @Test
+  func `a combined ILS/LOC chart answers both families`() throws {
     let chart = try #require(ChartName("ILS OR LOC RWY 28L"))
     #expect(chart.families == [.ils, .localizer])
     #expect(chart.runway == "28L")
     #expect(chart.designator == nil)
   }
 
-  @Test("reads a multiple indicator embedded before OR")
-  func embeddedIndicator() throws {
+  @Test
+  func `reads a multiple indicator embedded before OR`() throws {
     let chart = try #require(ChartName("ILS Z OR LOC Z RWY 23"))
     #expect(chart.runway == "23")
     #expect(chart.designator == "Z")
   }
 
-  @Test("reads a multiple indicator placed before RWY")
-  func trailingIndicator() throws {
+  @Test
+  func `reads a multiple indicator placed before RWY`() throws {
     let chart = try #require(ChartName("RNAV (GPS) Y RWY 10R"))
     #expect(chart.families == [.rnav, .gps])
     #expect(chart.runway == "10R")
     #expect(chart.designator == "Y")
   }
 
-  @Test("distinguishes RNP from GPS RNAV charts")
-  func rnpIsNotGPS() throws {
+  @Test
+  func `distinguishes RNP from GPS RNAV charts`() throws {
     let chart = try #require(ChartName("RNAV (RNP) Z RWY 10R"))
     #expect(chart.families == [.rnp])
   }
 
-  @Test("treats a plain VOR chart as satisfying a DME-requiring VOR approach")
-  func plainVORSatisfiesVORRequiringDME() throws {
+  @Test
+  func `treats a plain VOR chart as satisfying a DME-requiring VOR approach`() throws {
     let chart = try #require(ChartName("VOR RWY 05"))
     #expect(chart.families.contains(.vorRequiringDME))
     #expect(chart.families.contains(.vor))
     #expect(chart.runway == "05")
   }
 
-  @Test("a VOR/DME chart is not also a plain VOR chart")
-  func vorDMEIsDistinct() throws {
+  @Test
+  func `a VOR/DME chart is not also a plain VOR chart`() throws {
     let chart = try #require(ChartName("VOR/DME RWY 4"))
     #expect(chart.families.contains(.vorDME))
     #expect(!chart.families.contains(.vor))
   }
 
-  @Test("handles a circling approach designator")
-  func circling() throws {
+  @Test
+  func `handles a circling approach designator`() throws {
     let chart = try #require(ChartName("VOR-A"))
     #expect(chart.runway == nil)
     #expect(chart.designator == "A")
   }
 
-  @Test("takes the first runway of a dual-runway chart")
-  func dualRunway() throws {
+  @Test
+  func `takes the first runway of a dual-runway chart`() throws {
     let chart = try #require(ChartName("HI-TACAN Z RWY 23L/R"))
     #expect(chart.families == [.tacan])
     #expect(chart.runway == "23L")
     #expect(chart.designator == "Z")
   }
 
-  @Test("rejects a chart naming no navaid family")
-  func rejectsVisualChart() {
+  @Test
+  func `rejects a chart naming no navaid family`() {
     #expect(ChartName("TIPP TOE VISUAL RWY 28L/R") == nil)
   }
 
-  @Test("the base chart outranks its special-minimums variants")
-  func penaltyPrefersBaseChart() throws {
+  @Test
+  func `the base chart outranks its special-minimums variants`() throws {
     let base = try #require(ChartName("ILS OR LOC RWY 28L"))
     let catII = try #require(ChartName("ILS RWY 28L (SA CAT II)"))
     let military = try #require(ChartName("HI-ILS OR LOC RWY 28L"))
@@ -79,8 +79,8 @@ struct ChartNameTests {
     #expect(base.penalty < continuation.penalty)
   }
 
-  @Test("produces one key per family it satisfies")
-  func keysCoverEveryFamily() throws {
+  @Test
+  func `produces one key per family it satisfies`() throws {
     let chart = try #require(ChartName("ILS OR LOC RWY 28L"))
     #expect(
       Set(chart.keys) == [
@@ -90,8 +90,8 @@ struct ChartNameTests {
     )
   }
 
-  @Test("rejects a chart with neither runway nor designator")
-  func rejectsNonApproachChart() {
+  @Test
+  func `rejects a chart with neither runway nor designator`() {
     #expect(ChartName("AIRPORT DIAGRAM") == nil)
   }
 }

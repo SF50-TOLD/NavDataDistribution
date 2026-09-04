@@ -3,10 +3,10 @@ import Testing
 
 @testable import NavDataGeneration
 
-@Suite("ApproachFamily")
-struct ApproachFamilyTests {
-  @Test("treats a DME-requiring VOR approach as its own family")
-  func vorRequiringDMEIsDistinct() {
+@Suite
+struct `ApproachFamily tests` {
+  @Test
+  func `treats a DME-requiring VOR approach as its own family`() {
     // CIFP type S is charted as plain VOR, VOR/DME, or VOR OR TACAN, so it must
     // not collapse into .vor or .tacan.
     #expect(ApproachFamily(approachType: .vorTAC) == .vorRequiringDME)
@@ -14,16 +14,13 @@ struct ApproachFamilyTests {
     #expect(ApproachFamily(approachType: .tacan) == .tacan)
   }
 
-  @Test(
-    "collapses every MLS variant into one family",
-    arguments: [ApproachType.mls, .mlsTypeA, .mlsTypeBC]
-  )
-  func collapsesMLSVariants(type: ApproachType) {
+  @Test(arguments: [ApproachType.mls, .mlsTypeA, .mlsTypeBC])
+  func `collapses every MLS variant into one family`(type: ApproachType) {
     #expect(ApproachFamily(approachType: type) == .mls)
   }
 
-  @Test("has no family for transitions or missed approaches")
-  func rejectsNonApproachTypes() {
+  @Test
+  func `has no family for transitions or missed approaches`() {
     #expect(ApproachFamily(approachType: .transition) == nil)
     #expect(ApproachFamily(approachType: .missedApproach) == nil)
   }
