@@ -1,10 +1,10 @@
-import Foundation
-import Logging
+public import Foundation
+public import Logging
 import NavData
 import StreamingLZMAXZ
 import SwiftCIFP
 import SwiftDOF
-import SwiftNASR
+public import SwiftNASR
 import SwiftTimeZoneLookup
 
 /// Errors that can occur during data processing.
