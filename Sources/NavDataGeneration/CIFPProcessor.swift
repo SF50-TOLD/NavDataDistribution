@@ -47,6 +47,13 @@ struct CIFPProcessor {
   /// Logger for status messages and errors.
   let logger: Logger
 
+  /// Emits the intervals that put the CIFP load on an Instruments timeline.
+  private let signposter = Signposter(category: "CIFPProcessor")
+
+  init(logger: Logger) {
+    self.logger = logger
+  }
+
   // MARK: - Type Methods
 
   /// Constructs a human-readable approach name from CIFP data.
@@ -250,65 +257,75 @@ struct CIFPProcessor {
     cycle: SwiftNASR.Cycle,
     onProgress: (@Sendable (Int, Int) async -> Void)? = nil
   ) async throws -> CIFPResult {
-    await onProgress?(0, 100)
+    try await signposter.withInterval("load CIFP data") {
+      await onProgress?(0, 100)
 
-    // CIFP data is available from the FAA at this URL pattern
-    // Format: CIFP_YYMMDD.zip (e.g., CIFP_250102.zip for January 2, 2025)
-    let dateString = formatCIFPDate(cycle)
-    let cifpURLString = String(format: Self.cifpURLTemplate, dateString)
-    guard let cifpURL = URL(string: cifpURLString) else {
-      throw CIFPProcessorError.invalidURL(cifpURLString)
-    }
-
-    logger.notice("Downloading CIFP data from \(cifpURL)…")
-
-    // Download the ZIP file
-    let downloadedData = try await withRetries(logger: logger) {
-      let (downloadedData, response) = try await URLSession.shared.data(from: cifpURL)
-      if let httpResponse = response as? HTTPURLResponse,
-        !(200..<300).contains(httpResponse.statusCode)
-      {
-        throw CIFPProcessorError.downloadFailed(httpResponse.statusCode)
+      // CIFP data is available from the FAA at this URL pattern
+      // Format: CIFP_YYMMDD.zip (e.g., CIFP_250102.zip for January 2, 2025)
+      let dateString = formatCIFPDate(cycle)
+      let cifpURLString = String(format: Self.cifpURLTemplate, dateString)
+      guard let cifpURL = URL(string: cifpURLString) else {
+        throw CIFPProcessorError.invalidURL(cifpURLString)
       }
-      return downloadedData
-    }
-    await onProgress?(Self.downloadProgressEnd, 100)
 
-    try Task.checkCancellation()
+      logger.notice("Downloading CIFP data from \(cifpURL)…")
 
-    // Extract CIFP data from ZIP
-    let cifpData = try extractCIFPFromZip(downloadedData)
-
-    // Parse CIFP
-    logger.notice("Parsing CIFP data…")
-    let cifp = try await withPolledProgress(
-      mappingTo: Self.downloadProgressEnd..<Self.parseProgressEnd,
-      onProgress: onProgress
-    ) { progressHandler in
-      try CIFP(
-        data: cifpData,
-        progressHandler: progressHandler,
-        errorCallback: { error, lineNumber in
-          if let lineNumber {
-            self.logger.debug("CIFP parse error at line \(lineNumber): \(error)")
-          } else {
-            self.logger.debug("CIFP parse error: \(error)")
+      // Download the ZIP file
+      let downloadedData = try await signposter.withInterval("download CIFP archive") {
+        try await withRetries(logger: logger) {
+          let (downloadedData, response) = try await URLSession.shared.data(from: cifpURL)
+          if let httpResponse = response as? HTTPURLResponse,
+            !(200..<300).contains(httpResponse.statusCode)
+          {
+            throw CIFPProcessorError.downloadFailed(httpResponse.statusCode)
           }
+          return downloadedData
         }
-      )
+      }
+      await onProgress?(Self.downloadProgressEnd, 100)
+
+      try Task.checkCancellation()
+
+      // Extract CIFP data from ZIP
+      let cifpData = try await signposter.withInterval("extract CIFP archive") {
+        try extractCIFPFromZip(downloadedData)
+      }
+
+      // Parse CIFP
+      logger.notice("Parsing CIFP data…")
+      let cifp = try await signposter.withInterval("parse CIFP data") {
+        try await withPolledProgress(
+          mappingTo: Self.downloadProgressEnd..<Self.parseProgressEnd,
+          onProgress: onProgress
+        ) { progressHandler in
+          try CIFP(
+            data: cifpData,
+            progressHandler: progressHandler,
+            errorCallback: { error, lineNumber in
+              if let lineNumber {
+                self.logger.debug("CIFP parse error at line \(lineNumber): \(error)")
+              } else {
+                self.logger.debug("CIFP parse error: \(error)")
+              }
+            }
+          )
+        }
+      }
+      await onProgress?(Self.parseProgressEnd, 100)
+
+      try Task.checkCancellation()
+
+      // Create linked data for fix resolution
+      logger.notice("Linking CIFP data…")
+      let linked = await signposter.withInterval("link CIFP data") {
+        await cifp.linked()
+      }
+      await onProgress?(Self.linkProgressEnd, 100)
+
+      let airportCount = await linked.airports.count
+      logger.notice("Loaded CIFP data with \(airportCount) airports for cycle \(cifp.cycle)")
+      return CIFPResult(cycle: cifp.cycle, data: linked)
     }
-    await onProgress?(Self.parseProgressEnd, 100)
-
-    try Task.checkCancellation()
-
-    // Create linked data for fix resolution
-    logger.notice("Linking CIFP data…")
-    let linked = await cifp.linked()
-    await onProgress?(Self.linkProgressEnd, 100)
-
-    let airportCount = await linked.airports.count
-    logger.notice("Loaded CIFP data with \(airportCount) airports for cycle \(cifp.cycle)")
-    return CIFPResult(cycle: cifp.cycle, data: linked)
   }
 
   /// Extracts the CIFP file from the downloaded ZIP archive.
