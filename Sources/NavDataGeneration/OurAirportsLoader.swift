@@ -41,6 +41,9 @@ struct OurAirportsLoader {
 
   private let logger: Logger
 
+  /// Emits the intervals that put the OurAirports load on an Instruments timeline.
+  private let signposter = Signposter(category: "OurAirportsLoader")
+
   init(logger: Logger) {
     self.logger = logger
   }
@@ -219,31 +222,39 @@ struct OurAirportsLoader {
   func loadAirports(
     onProgress: (@Sendable (Int, Int) async -> Void)? = nil
   ) async throws -> ([OurAirportData], Date) {
-    logger.notice("Downloading OurAirports data…")
-    await onProgress?(0, 2)
+    try await signposter.withInterval("load OurAirports data") {
+      logger.notice("Downloading OurAirports data…")
+      await onProgress?(0, 2)
 
-    // Download CSV files
-    let airportsData = try await withRetries(logger: logger) {
-      try await URLSession.shared.data(from: Self.airportsURL).0
+      // Download CSV files
+      let airportsData = try await signposter.withInterval("download OurAirports airports CSV") {
+        try await withRetries(logger: logger) {
+          try await URLSession.shared.data(from: Self.airportsURL).0
+        }
+      }
+      let runwaysData = try await signposter.withInterval("download OurAirports runways CSV") {
+        try await withRetries(logger: logger) {
+          try await URLSession.shared.data(from: Self.runwaysURL).0
+        }
+      }
+      await onProgress?(1, 2)
+
+      logger.notice("Parsing OurAirports CSVs…")
+
+      let airports = try await signposter.withInterval("parse OurAirports data") {
+        try await Self.parseAirports(
+          airportsData: airportsData,
+          runwaysData: runwaysData
+        )
+      }
+
+      // Use current date as last updated
+      let lastUpdated = Date()
+      await onProgress?(2, 2)
+
+      logger.notice("Loaded \(airports.count) airports from OurAirports")
+      return (airports, lastUpdated)
     }
-    let runwaysData = try await withRetries(logger: logger) {
-      try await URLSession.shared.data(from: Self.runwaysURL).0
-    }
-    await onProgress?(1, 2)
-
-    logger.notice("Parsing OurAirports CSVs…")
-
-    let airports = try await Self.parseAirports(
-      airportsData: airportsData,
-      runwaysData: runwaysData
-    )
-
-    // Use current date as last updated
-    let lastUpdated = Date()
-    await onProgress?(2, 2)
-
-    logger.notice("Loaded \(airports.count) airports from OurAirports")
-    return (airports, lastUpdated)
   }
 }
 
