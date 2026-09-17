@@ -1,13 +1,13 @@
 {
-  "originHash" : "c7daa59f9fcfa0d1fe3f79aa2a7ef0e3f3f885cb3f268d6c8857236f1613a098",
+  "originHash" : "d40f264f61d01c63b368a13b91e8d174c6e056f5ac58a899c8e7c5744107f33e",
   "pins" : [
     {
       "identity" : "navdata",
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/SF50-TOLD/NavData",
       "state" : {
-        "revision" : "5006219d0446bb9034570abefbad84d427a78251",
-        "version" : "1.0.0"
+        "revision" : "684eebb6816dae0fe3a517e3cb7e449eb35c2e90",
+        "version" : "1.0.1"
       }
     },
     {
@@ -15,8 +15,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/RISCfuture/StreamingCSV",
       "state" : {
-        "revision" : "c45b96da50605c3d83bed31fe7934fdf583467ab",
-        "version" : "2.1.0"
+        "revision" : "8720a28295430c9b08467fd74113dfcd8aa779dd",
+        "version" : "2.1.2"
       }
     },
     {
@@ -24,8 +24,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/RISCfuture/StreamingLZMA",
       "state" : {
-        "revision" : "8b6801824ef33d18e31ffbfda568931951e8d10e",
-        "version" : "2.0.0"
+        "revision" : "60db3a2b44f349b459ffd578c5715059facc9a2f",
+        "version" : "2.0.1"
       }
     },
     {
@@ -60,8 +60,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/apple/swift-log",
       "state" : {
-        "revision" : "a878e7f8f46cfc0e1125e565b5c08e7d5272dc9a",
-        "version" : "1.14.0"
+        "revision" : "9c6fb14227f55d8f711ce3847dc2f419fb0ecacb",
+        "version" : "1.15.1"
       }
     },
     {
@@ -87,8 +87,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/RISCfuture/SwiftCIFP",
       "state" : {
-        "revision" : "4349937f2ad955aada2c5de89f13c810e7bce72f",
-        "version" : "1.2.0"
+        "revision" : "4f1293446836e1521041e20f05a909a95d1599d1",
+        "version" : "2.0.0"
       }
     },
     {
@@ -96,8 +96,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/RISCfuture/SwiftDOF",
       "state" : {
-        "revision" : "f054244e8671e17e9424b14a689ca869d067062a",
-        "version" : "1.2.0"
+        "revision" : "412f4e6c2020baadc10dbf2949ebbb36d3fa45a2",
+        "version" : "2.0.0"
       }
     },
     {
@@ -105,8 +105,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/RISCfuture/SwiftNASR",
       "state" : {
-        "revision" : "d1d1865d9b114cd60dd51b479536eff555d3b396",
-        "version" : "4.1.1"
+        "revision" : "4521cd220f58ff88d95b3fbfee8e2cfcd422c333",
+        "version" : "4.3.0"
       }
     },
     {

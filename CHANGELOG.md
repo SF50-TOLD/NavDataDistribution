@@ -1,5 +1,28 @@
 # Change Log
 
+## [1.4.0] - 2026-09-17
+
+Move to SwiftCIFP 2.0.0, which stops losing NDB navaids. `ndbNavaids` was keyed
+by identifier alone, but an NDB identifier is unique only within an ICAO region,
+so beacons sharing one overwrote each other as records were read — cycle 2610
+lost 32 of its 382 beacons that way. Fix and navaid resolution now carry the
+region, so a procedure leg naming one of those identifiers links to the right
+beacon rather than whichever record happened to be read last. Every generated
+cycle gains the missing beacons and the corrected leg references.
+
+Move to SwiftDOF 2.0.0, which splits the obstacle accuracy category into the
+separate horizontal and vertical code sets the FAA actually defines and reads the
+marking indicator from the column that holds it. The generator takes only an
+obstacle's height and position, so the distribution's obstacle records are
+unchanged.
+
+Move to SwiftNASR 4.3.0, which distinguishes a PCR pavement classification from a
+PCN one, exposes the airway MEA gap indicator, and reads the required navigation
+performance the fixed-width parser had been transforming but discarding.
+
+Raise the remaining dependency floors to the current releases: NavData 1.0.1,
+StreamingLZMA 2.0.1, StreamingCSV 2.1.2, and swift-log 1.15.1.
+
 ## [1.3.0] - 2026-09-02
 
 Move to SwiftNASR 4.1.1, which survives the FAA's airport layout effective
