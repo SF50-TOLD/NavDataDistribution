@@ -87,7 +87,7 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/RISCfuture/SwiftCIFP",
       "state" : {
-        "revision" : "4f1293446836e1521041e20f05a909a95d1599d1",
+        "revision" : "b84b9f97fa5bdcf368793b6bd484aba50cf25315",
         "version" : "2.0.0"
       }
     },
