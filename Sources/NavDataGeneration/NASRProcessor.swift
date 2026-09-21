@@ -137,61 +137,59 @@ struct NASRProcessor {
       throw NASRProcessorError.failedToCreateNASR
     }
 
+    // SwiftNASR reports through a `ProgressManager` the caller owns, so the phases below each take
+    // a slice of this one and the reporter follows it by observation. The libraries behind the
+    // CIFP and DOF processors still hand back a `Progress`, so `pollProgress` stays for them.
+    let progress = ProgressManager(totalCount: 100)
+    let reporter = reportProgress(of: progress, to: onProgress)
+    defer { reporter.cancel() }
+
     logger.notice("Loading NASR archive…")
-    try await withPolledProgress(
-      mappingTo: 0..<Self.downloadProgressEnd,
-      onProgress: onProgress
-    ) { progressHandler in
-      try await withRetries(logger: logger) {
-        try await nasr.load(withProgress: progressHandler)
-      }
+    // A `Subprogress` is consumed by the call it is passed to, and `withRetries` may run its
+    // operation several times. The first attempt takes the download's share; a retry reports no
+    // progress rather than claiming a second share of the run.
+    var downloadProgress: Subprogress? = progress.subprogress(
+      assigningCount: Self.downloadProgressEnd
+    )
+    try await withRetries(logger: logger) {
+      let attemptProgress = downloadProgress
+      downloadProgress = nil
+      try await nasr.load(progress: attemptProgress)
     }
-    await onProgress?(Self.downloadProgressEnd, 100)
 
     try Task.checkCancellation()
 
     logger.notice("Parsing NASR airports…")
-    try await withPolledProgress(
-      mappingTo: Self.downloadProgressEnd..<Self.airportsProgressEnd,
-      onProgress: onProgress
-    ) { progressHandler in
-      try await nasr.parse(
-        .airports,
-        withProgress: progressHandler,
-        errorHandler: { error in self.handleParseError(error, context: "airport") }
-      )
-    }
-    await onProgress?(Self.airportsProgressEnd, 100)
+    try await nasr.parse(
+      .airports,
+      progress: progress.subprogress(
+        assigningCount: Self.airportsProgressEnd - Self.downloadProgressEnd
+      ),
+      errorHandler: { error in self.handleParseError(error, context: "airport") }
+    )
 
     try Task.checkCancellation()
 
     logger.notice("Parsing NASR ILS data…")
-    try await withPolledProgress(
-      mappingTo: Self.airportsProgressEnd..<Self.ilsProgressEnd,
-      onProgress: onProgress
-    ) { progressHandler in
-      try await nasr.parse(
-        .ILSes,
-        withProgress: progressHandler,
-        errorHandler: { error in self.handleParseError(error, context: "ILS") }
-      )
-    }
-    await onProgress?(Self.ilsProgressEnd, 100)
+    try await nasr.parse(
+      .ILSes,
+      progress: progress.subprogress(
+        assigningCount: Self.ilsProgressEnd - Self.airportsProgressEnd
+      ),
+      errorHandler: { error in self.handleParseError(error, context: "ILS") }
+    )
 
     try Task.checkCancellation()
 
     logger.notice("Parsing NASR departure procedures…")
     do {
-      try await withPolledProgress(
-        mappingTo: Self.ilsProgressEnd..<Self.departureProceduresProgressEnd,
-        onProgress: onProgress
-      ) { progressHandler in
-        try await nasr.parse(
-          .departureArrivalProceduresComplete,
-          withProgress: progressHandler,
-          errorHandler: { error in self.handleParseError(error, context: "departure procedure") }
-        )
-      }
+      try await nasr.parse(
+        .departureArrivalProceduresComplete,
+        progress: progress.subprogress(
+          assigningCount: Self.departureProceduresProgressEnd - Self.ilsProgressEnd
+        ),
+        errorHandler: { error in self.handleParseError(error, context: "departure procedure") }
+      )
     } catch is CancellationError {
       throw CancellationError()
     } catch {

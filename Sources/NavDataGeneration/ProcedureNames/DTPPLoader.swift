@@ -120,10 +120,7 @@ struct DTPPLoader {
       buffer.reduce(into: Int64(0)) { count, byte in if byte == 0x0A { count += 1 } }
     }
 
-    // `Progress` is not `Sendable`, but the only cross-task access is the
-    // parser thread advancing its count while the poller reads it, which its
-    // counters support.
-    nonisolated(unsafe) let progress = Progress(totalUnitCount: max(lineCount, 1))
+    let progress = Progress(totalUnitCount: max(lineCount, 1))
 
     let polling = pollProgress(
       progress,
