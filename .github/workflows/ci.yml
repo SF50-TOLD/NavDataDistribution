@@ -15,7 +15,7 @@ jobs:
     name: Build
     runs-on: ubuntu-latest
     container:
-      image: swift:6.3
+      image: swift:6.4
     steps:
       - uses: actions/checkout@v6
       - name: Install liblzma
@@ -29,14 +29,14 @@ jobs:
             .build
             ~/.cache/org.swift.swiftpm
             ~/Library/Caches/org.swift.swiftpm
-          key: swiftpm-build-ubuntu-latest-swift6.3-${{ hashFiles('Package.resolved') }}
+          key: swiftpm-build-ubuntu-latest-swift6.4-${{ hashFiles('Package.resolved') }}
       - name: Build
         run: swift build -v
   test:
     name: Test
     runs-on: ubuntu-latest
     container:
-      image: swift:6.3
+      image: swift:6.4
     steps:
       - uses: actions/checkout@v6
       - name: Install liblzma
@@ -50,14 +50,14 @@ jobs:
             .build
             ~/.cache/org.swift.swiftpm
             ~/Library/Caches/org.swift.swiftpm
-          key: swiftpm-test-ubuntu-latest-swift6.3-${{ hashFiles('Package.resolved') }}
+          key: swiftpm-test-ubuntu-latest-swift6.4-${{ hashFiles('Package.resolved') }}
       - name: Test
         run: swift test -v
   docs:
     name: Build Documentation
     runs-on: ubuntu-latest
     container:
-      image: swift:6.3
+      image: swift:6.4
     steps:
       - uses: actions/checkout@v6
       - name: Install liblzma
@@ -71,7 +71,7 @@ jobs:
             .build
             ~/.cache/org.swift.swiftpm
             ~/Library/Caches/org.swift.swiftpm
-          key: swiftpm-docs-ubuntu-latest-swift6.3-${{ hashFiles('Package.resolved') }}
+          key: swiftpm-docs-ubuntu-latest-swift6.4-${{ hashFiles('Package.resolved') }}
       - name: Build documentation
         run: |
           swift package --allow-writing-to-directory "$RUNNER_TEMP/docs" \
@@ -92,7 +92,7 @@ jobs:
     name: Run swift-format
     runs-on: ubuntu-latest
     container:
-      image: swift:6.3
+      image: swift:6.4
     steps:
       - uses: actions/checkout@v6
       - name: Download .swift-format config
