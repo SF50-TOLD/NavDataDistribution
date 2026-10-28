@@ -109,7 +109,7 @@ struct NASRProcessor {
 
   /// Derives `SurfaceType` from SwiftNASR runway treatment and material data.
   private static func deriveSurfaceType(from runway: SwiftNASR.Runway) -> SurfaceType {
-    guard runway.isPaved else { return .turf }
+    guard runway.isPaved != false else { return .turf }
 
     if runway.treatment == .grooved {
       return .grooved

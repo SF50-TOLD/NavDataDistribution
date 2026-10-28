@@ -34,9 +34,4 @@ struct `ApproachKey tests` {
     let key = ApproachKey(approachType: .vorTAC, identifier: "S05")
     #expect(key == ApproachKey(family: .vorRequiringDME, runway: "05", designator: nil))
   }
-
-  @Test
-  func `has no key for a non-approach record type`() {
-    #expect(ApproachKey(approachType: .transition, identifier: "I28L") == nil)
-  }
 }

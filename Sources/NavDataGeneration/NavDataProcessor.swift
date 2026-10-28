@@ -120,7 +120,7 @@ public struct NavDataProcessor: Sendable {
 
     var dofInfo: AirportDataCodable.CycleInfo?
     if let dofCycle = loadedData.dofCycle {
-      guard let effective = dofCycle.effectiveDate,
+      guard let effective = dofCycle.releaseDate,
         let expires = dofCycle.expirationDate
       else {
         throw NavDataProcessorError.missingCycleDates(source: "DOF")

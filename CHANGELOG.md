@@ -1,5 +1,31 @@
 # Change Log
 
+## [2.0.0] - 2026-10-28
+
+**Breaking:** the package now requires macOS 27 and Swift tools 6.4, which
+SwiftNASR 5's `ProgressManager` progress reporting requires, and
+`NavDataProcessor.init(cycle:outputLocation:logger:)` takes a SwiftNASR 5
+`Cycle`. A consumer that also depends on SwiftNASR must move to 5.0.0.
+
+Move to SwiftNASR 5.0.0, SwiftCIFP 3.0.0, SwiftDOF 3.0.0, StreamingCSV 3.0.0,
+StreamingLZMA 2.1.0, and NavData 1.0.1, each pinned to its release rather than
+a branch. NASR load progress comes from a `ProgressManager`.
+
+SwiftCIFP 3.0.0 reads an altitude published with a blank description as the
+"at" restriction ARINC 424 defines, where 2.0.0 dropped it. In the 2026-10-29
+cycle, 139 departure and missed approach legs gain an "at" restriction, and
+the 36 departures that cross one have their required climb gradient computed
+with it. A leg whose course is charted in degrees true is treated as having no
+magnetic course rather than a misread one; the FAA publishes no such legs
+today.
+
+The DOF cycle's effective date is now the day the FAA releases it, two days
+after the currency date in the file's header, and it expires when the next
+cycle is released. Both dates were two days early.
+
+A runway whose surface is blank or unrecognized is still treated as paved, as
+it was before SwiftNASR 5 began reporting that surface as unknown.
+
 ## [1.4.0] - 2026-09-17
 
 Move to SwiftCIFP 2.0.0, which stops losing NDB navaids. `ndbNavaids` was keyed

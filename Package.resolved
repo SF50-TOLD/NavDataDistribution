@@ -1,13 +1,13 @@
 {
-  "originHash" : "439d9eb426242d917c82833a60af3f66b771acd96927eb96bad8c6d1b53d50b7",
+  "originHash" : "8a227588023b6fa2260de4fdb386431e37f1f5dcb2dca1669c4de75260f7b0d5",
   "pins" : [
     {
       "identity" : "navdata",
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/SF50-TOLD/NavData",
       "state" : {
-        "branch" : "main",
-        "revision" : "f8ee8289b1a6697181b25d6ae77417b9367525b7"
+        "revision" : "684eebb6816dae0fe3a517e3cb7e449eb35c2e90",
+        "version" : "1.0.1"
       }
     },
     {
@@ -15,8 +15,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/RISCfuture/StreamingCSV",
       "state" : {
-        "branch" : "main",
-        "revision" : "bfc1f27bc35ef63f3bf9189e9f718999a1fc50ad"
+        "revision" : "f240a8d5e3f5522dd78e1057f684bb176481f310",
+        "version" : "3.0.0"
       }
     },
     {
@@ -24,8 +24,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/RISCfuture/StreamingLZMA",
       "state" : {
-        "branch" : "main",
-        "revision" : "f50bc5c1e23de3bff6914eb4b367f11ffeb31bf8"
+        "revision" : "fefce35fabfa54282849f2ca1f62a3c2526334ce",
+        "version" : "2.1.0"
       }
     },
     {
@@ -87,8 +87,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/RISCfuture/SwiftCIFP",
       "state" : {
-        "branch" : "main",
-        "revision" : "89e43822b187c08f181586d95d7bd9e69fbe6d88"
+        "revision" : "d57301f98db1b850b9c57d823c7f7dcf996fc730",
+        "version" : "3.0.0"
       }
     },
     {
@@ -96,8 +96,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/RISCfuture/SwiftDOF",
       "state" : {
-        "branch" : "main",
-        "revision" : "5630d134e371347c5302f0d0b17440103dbacbf8"
+        "revision" : "26e42501eadbc12d63d4c1f41f2bf8a157f51a85",
+        "version" : "3.0.0"
       }
     },
     {
@@ -105,8 +105,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/RISCfuture/SwiftNASR",
       "state" : {
-        "branch" : "main",
-        "revision" : "2391caf97a98bce449c105db7ac75250f7ef5476"
+        "revision" : "a4d56cc686e148460a200eeff5751c2beed36847",
+        "version" : "5.0.0"
       }
     },
     {

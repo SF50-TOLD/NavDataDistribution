@@ -34,9 +34,7 @@ enum ApproachFamily: Hashable, Sendable {
 
   /// The family a CIFP approach type belongs to.
   /// - Parameter approachType: The CIFP approach type.
-  /// - Returns: `nil` for record types that are not approaches in their own
-  ///   right — transitions and missed approaches.
-  init?(approachType: ApproachType) {
+  init(approachType: ApproachType) {
     switch approachType {
       case .ils: self = .ils
       case .localizerOnly: self = .localizer
@@ -56,7 +54,6 @@ enum ApproachFamily: Hashable, Sendable {
       case .igs: self = .igs
       case .fms: self = .fms
       case .mls, .mlsTypeA, .mlsTypeBC: self = .mls
-      case .transition, .missedApproach: return nil
     }
   }
 }

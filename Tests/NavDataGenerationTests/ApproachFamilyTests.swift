@@ -18,10 +18,4 @@ struct `ApproachFamily tests` {
   func `collapses every MLS variant into one family`(type: ApproachType) {
     #expect(ApproachFamily(approachType: type) == .mls)
   }
-
-  @Test
-  func `has no family for transitions or missed approaches`() {
-    #expect(ApproachFamily(approachType: .transition) == nil)
-    #expect(ApproachFamily(approachType: .missedApproach) == nil)
-  }
 }

@@ -20,17 +20,15 @@ struct ApproachKey: Hashable, Sendable {
 
   /// Derives a key from a CIFP approach's type and procedure identifier.
   ///
-  /// SwiftCIFP leaves `Approach.runwayId` and `Approach.multipleIndicator` nil
-  /// for airport approaches, so both are parsed out of the identifier instead:
+  /// Both the runway and the designator are parsed out of the identifier:
   /// `"R28RZ"` yields runway `28R` and designator `Z`; `"VOR-A"` yields the
   /// circling designator `A`.
   /// - Parameters:
   ///   - approachType: The CIFP approach type.
   ///   - identifier: The CIFP procedure identifier.
-  /// - Returns: `nil` when the type is not an approach, or the identifier does
-  ///   not parse.
+  /// - Returns: `nil` when the identifier does not parse.
   init?(approachType: ApproachType, identifier: String) {
-    guard let family = ApproachFamily(approachType: approachType) else { return nil }
+    let family = ApproachFamily(approachType: approachType)
     let remainder = identifier.dropFirst()
 
     if let match = remainder.wholeMatch(of: /(\d{1,2}[LCR]?)-?([A-Z])?/) {

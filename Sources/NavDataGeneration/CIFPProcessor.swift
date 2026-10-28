@@ -23,7 +23,7 @@ struct CIFPProcessor {
   /// Path terminators that use DME distance for termination.
   private static let dmePathTerminators: Set<PathTerminator> = [
     .trackFromFixDME,
-    .trackFromFixDistance,  // FC: routeDistanceNMOrMinutes is ground distance, not slant range
+    .trackFromFixDistance,  // FC: the leg length is ground distance, not slant range
     .courseToDME,
     .headingToDME
   ]
@@ -93,7 +93,7 @@ struct CIFPProcessor {
     guard let pt = leg.pathTerminator, dmePathTerminators.contains(pt) else {
       return (nil, nil, nil)
     }
-    return (leg.recommendedNavaid, leg.recommendedNavaidICAO, leg.routeDistanceNMOrMinutes)
+    return (leg.recommendedNavaidId, leg.recommendedNavaidICAO, leg.distanceNM)
   }
 
   /// Extracts radial-related fields from a procedure leg, if applicable.
@@ -106,7 +106,7 @@ struct CIFPProcessor {
     guard let pt = leg.pathTerminator, radialPathTerminators.contains(pt) else {
       return (nil, nil, nil)
     }
-    return (leg.recommendedNavaid, leg.recommendedNavaidICAO, leg.thetaDeg)
+    return (leg.recommendedNavaidId, leg.recommendedNavaidICAO, leg.thetaDeg)
   }
 
   /// Converts a SwiftCIFP procedure leg to a ``LegTypeCodable``.
@@ -438,9 +438,7 @@ struct CIFPProcessor {
 
     for approach in cifpAirport.approaches {
       // Skip transitions and missed approach route types — we only want the main approach
-      guard approach.approachType != .transition,
-        approach.approachType != .missedApproach
-      else { continue }
+      guard approach.routeType == .finalApproach else { continue }
 
       // Skip if we've already processed this approach identifier (avoid duplicates)
       guard !processedIdentifiers.contains(approach.identifier) else { continue }
@@ -623,32 +621,30 @@ struct CIFPProcessor {
   private func convertAltitudeConstraint(
     _ constraint: AltitudeConstraint
   ) -> AirportDataCodable.AltitudeRestrictionCodable? {
+    // A glide slope, intercept, or vertical path altitude accompanies the
+    // procedure altitude only on final approach; the fix's restriction is the
+    // procedure altitude.
     switch constraint {
-      case .at(let altitude):
-        guard let feet = altitude.feetValue else { return nil }
-        return .at(feet)
+      case .at(let altitude),
+        .atWithGlideSlope(let altitude, _),
+        .atWithGlideSlopeIntercept(let altitude, _),
+        .atWithVerticalPath(let altitude, _):
+        return altitude.feetValue.map { .at($0) }
 
-      case .atOrAbove(let altitude):
-        guard let feet = altitude.feetValue else { return nil }
-        return .atOrAbove(feet)
+      case .atOrAbove(let altitude),
+        .conditionalAtOrAbove(let altitude),
+        .atOrAboveWithGlideSlope(let altitude, _),
+        .atOrAboveWithGlideSlopeIntercept(let altitude, _),
+        .atOrAboveWithVerticalPath(let altitude, _):
+        return altitude.feetValue.map { .atOrAbove($0) }
 
-      case .atOrBelow(let altitude):
-        guard let feet = altitude.feetValue else { return nil }
-        return .atOrBelow(feet)
+      case .atOrBelow(let altitude),
+        .atOrBelowWithVerticalPath(let altitude, _):
+        return altitude.feetValue.map { .atOrBelow($0) }
 
-      case let .between(lower, upper),
-        let .atOrAboveToAtOrBelow(lower, upper),
-        let .atOrAboveToAt(lower, upper),
-        let .atToAtOrBelow(lower, upper),
-        let .atToAtOrAbove(lower, upper),
-        let .atOrBelowToAtOrAbove(lower, upper):
-        guard let feet1 = lower.feetValue, let feet2 = upper.feetValue else { return nil }
-        // ARINC 424 altitude ordering varies by descriptor; normalize so min < max
-        return .between(min: Swift.min(feet1, feet2), max: Swift.max(feet1, feet2))
-
-      case .glideSlopeIntercept, .glidePathIntercept:
-        // These are approach-specific, not relevant for departure procedures
-        return nil
+      case let .between(lower, upper):
+        guard let lowerFeet = lower.feetValue, let upperFeet = upper.feetValue else { return nil }
+        return .between(min: lowerFeet, max: upperFeet)
     }
   }
 
@@ -658,16 +654,17 @@ struct CIFPProcessor {
       case .at(let altitude),
         .atOrAbove(let altitude),
         .atOrBelow(let altitude),
-        .glideSlopeIntercept(let altitude),
-        .glidePathIntercept(let altitude):
+        .conditionalAtOrAbove(let altitude),
+        .atWithGlideSlope(let altitude, _),
+        .atOrAboveWithGlideSlope(let altitude, _),
+        .atWithGlideSlopeIntercept(let altitude, _),
+        .atOrAboveWithGlideSlopeIntercept(let altitude, _),
+        .atOrAboveWithVerticalPath(let altitude, _),
+        .atWithVerticalPath(let altitude, _),
+        .atOrBelowWithVerticalPath(let altitude, _):
         return altitude.feetValue
 
-      case .between(let lower, _),
-        .atOrAboveToAtOrBelow(let lower, _),
-        .atOrAboveToAt(let lower, _),
-        .atToAtOrBelow(let lower, _),
-        .atToAtOrAbove(let lower, _),
-        .atOrBelowToAtOrAbove(let lower, _):
+      case .between(let lower, _):
         return lower.feetValue
     }
   }
@@ -678,6 +675,22 @@ struct CIFPProcessor {
   struct CIFPResult {
     let cycle: SwiftCIFP.Cycle?
     let data: CIFPData?
+  }
+}
+
+extension ProcedureLeg {
+  /// The leg's course in degrees magnetic, or `nil` if it has none or is
+  /// charted in degrees true.
+  fileprivate var magneticCourseDeg: Double? {
+    guard let course, course.reference == .magnetic else { return nil }
+    return course.degrees
+  }
+
+  /// The leg's length in nautical miles, or `nil` if it has none or is a
+  /// holding pattern leg flown for a time.
+  fileprivate var distanceNM: Double? {
+    guard case .distance(let distance) = length else { return nil }
+    return distance.converted(to: .nauticalMiles).value
   }
 }
 
