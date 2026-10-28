@@ -16,7 +16,7 @@
       "location" : "https://github.com/RISCfuture/StreamingCSV",
       "state" : {
         "branch" : "main",
-        "revision" : "df1a7898e56cd0f257e5b7ffbe7b7866922e6a86"
+        "revision" : "bfc1f27bc35ef63f3bf9189e9f718999a1fc50ad"
       }
     },
     {
@@ -25,7 +25,7 @@
       "location" : "https://github.com/RISCfuture/StreamingLZMA",
       "state" : {
         "branch" : "main",
-        "revision" : "748c91c912b4e5f7727ee299e49827d124d0a231"
+        "revision" : "f50bc5c1e23de3bff6914eb4b367f11ffeb31bf8"
       }
     },
     {
@@ -106,7 +106,7 @@
       "location" : "https://github.com/RISCfuture/SwiftNASR",
       "state" : {
         "branch" : "main",
-        "revision" : "43793427d3ff4cac842981405a38aad62bb15e57"
+        "revision" : "2391caf97a98bce449c105db7ac75250f7ef5476"
       }
     },
     {
