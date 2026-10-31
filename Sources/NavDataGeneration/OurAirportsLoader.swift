@@ -25,12 +25,7 @@ import StreamingCSV
 /// 2. Parses using StreamingCSV
 /// 3. Filters to small/medium/large airports (excludes heliports, seaplane bases)
 /// 4. Filters runways ≥500 feet (excludes water runways)
-/// 5. Returns ``OurAirportData`` structs
-///
-/// ## See Also
-///
-/// - ``OurAirportData``
-/// - ``OurRunwayData``
+/// 5. Returns ``SourceAirport`` records
 struct OurAirportsLoader {
   private static let airportsURL = URL(
     string: "https://davidmegginson.github.io/ourairports-data/airports.csv"
@@ -38,6 +33,8 @@ struct OurAirportsLoader {
   private static let runwaysURL = URL(
     string: "https://davidmegginson.github.io/ourairports-data/runways.csv"
   )!
+
+  private static let metersPerFoot = 0.3048
 
   private let logger: Logger
 
@@ -54,14 +51,14 @@ struct OurAirportsLoader {
   private static func parseAirports(
     airportsData: Data,
     runwaysData: Data
-  ) async throws -> [OurAirportData] {
+  ) async throws -> [SourceAirport] {
     let runwaysByAirport = try await groupRunwaysByAirport(runwaysData)
 
     let reader = StreamingCSVReader(data: airportsData)
     guard let header = try await reader.readRow() else { return [] }
     let columns = CSVColumns(header: header)
 
-    var airports = [OurAirportData]()
+    var airports = [SourceAirport]()
     while let row = try await reader.readRow() {
       guard let id = columns.int(row, "id"),
         let ident = columns.string(row, "ident"),
@@ -75,34 +72,36 @@ struct OurAirportsLoader {
         continue
       }
 
-      let localId = columns.string(row, "local_code") ?? ""
-      let locationId = localId.isEmpty ? ident : localId
-      let ICAO_ID = columns.string(row, "icao_code")
-      let elevation = Double(columns.int(row, "elevation_ft") ?? 0)
-      let municipality = columns.string(row, "municipality")
-
-      let runways = runwaysByAirport[ident] ?? []
-      let airport = OurAirportData(
-        id: String(id),
-        localId: locationId,
-        ICAO_ID: ICAO_ID,
-        name: name,
-        municipality: municipality,
-        latitude: latitude,
-        longitude: longitude,
-        elevationFt: elevation,
-        runways: runways
+      let localCode = columns.string(row, "local_code")
+      airports.append(
+        SourceAirport(
+          source: .ourAirports,
+          sourceID: String(id),
+          identifiers: .init(
+            ICAO: AirportKey.ICAOIndicator(columns.string(row, "icao_code")),
+            national: localCode,
+            countryCode: columns.string(row, "iso_country"),
+            ourAirports: String(id)
+          ),
+          locationID: localCode ?? ident,
+          name: name,
+          city: columns.string(row, "municipality"),
+          latitude: latitude,
+          longitude: longitude,
+          elevation: columns.int(row, "elevation_ft").map { Double($0) * metersPerFoot },
+          runwayEnds: runwaysByAirport[ident] ?? [],
+          describesRunways: true
+        )
       )
-      airports.append(airport)
     }
 
     return airports
   }
 
   private static func groupRunwaysByAirport(_ runwaysData: Data) async throws -> [String:
-    [OurRunwayData]]
+    [SourceRunwayEnd]]
   {
-    var runwaysByAirport = [String: [OurRunwayData]]()
+    var runwaysByAirport = [String: [SourceRunwayEnd]]()
 
     let reader = StreamingCSVReader(data: runwaysData)
     guard let header = try await reader.readRow() else { return runwaysByAirport }
@@ -129,55 +128,44 @@ struct OurAirportsLoader {
 
       // Process low end (base end)
       if let lowIdent = columns.string(row, "le_ident") {
-        let lowElevation = columns.int(row, "le_elevation_ft").map { Double($0) }
-        let lowHeading =
-          columns.double(row, "le_heading_degT")
-          ?? calculateHeadingFromIdent(
-            lowIdent
+        runwaysByAirport[airportIdent, default: []].append(
+          SourceRunwayEnd(
+            name: lowIdent,
+            reciprocalName: columns.string(row, "he_ident"),
+            trueHeading: columns.double(row, "le_heading_degT"),
+            length: Double(length) * metersPerFoot,
+            width: widthFt.map { $0 * metersPerFoot },
+            surface: surfaceType,
+            thresholdLatitude: columns.double(row, "le_latitude_deg"),
+            thresholdLongitude: columns.double(row, "le_longitude_deg"),
+            thresholdElevation: columns.int(row, "le_elevation_ft").map {
+              Double($0) * metersPerFoot
+            },
+            displacedThresholdDistance: columns.int(row, "le_displaced_threshold_ft")
+              .map { Double($0) * metersPerFoot }
           )
-        let lowDisplaced = Double(columns.int(row, "le_displaced_threshold_ft") ?? 0)
-        let lowLatitude = columns.double(row, "le_latitude_deg")
-        let lowLongitude = columns.double(row, "le_longitude_deg")
-
-        let runway = OurRunwayData(
-          name: lowIdent,
-          elevationFt: lowElevation,
-          trueHeading: lowHeading,
-          lengthFt: Double(length),
-          displacedThresholdFt: lowDisplaced,
-          surfaceType: surfaceType,
-          reciprocalName: columns.string(row, "he_ident"),
-          thresholdLatitude: lowLatitude,
-          thresholdLongitude: lowLongitude,
-          widthFt: widthFt
         )
-
-        runwaysByAirport[airportIdent, default: []].append(runway)
       }
 
       // Process high end (reciprocal end)
       if let highIdent = columns.string(row, "he_ident") {
-        let highElevation = columns.int(row, "he_elevation_ft").map { Double($0) }
-        let highHeading =
-          columns.double(row, "he_heading_degT") ?? calculateHeadingFromIdent(highIdent)
-        let highDisplaced = Double(columns.int(row, "he_displaced_threshold_ft") ?? 0)
-        let highLatitude = columns.double(row, "he_latitude_deg")
-        let highLongitude = columns.double(row, "he_longitude_deg")
-
-        let runway = OurRunwayData(
-          name: highIdent,
-          elevationFt: highElevation,
-          trueHeading: highHeading,
-          lengthFt: Double(length),
-          displacedThresholdFt: highDisplaced,
-          surfaceType: surfaceType,
-          reciprocalName: columns.string(row, "le_ident"),
-          thresholdLatitude: highLatitude,
-          thresholdLongitude: highLongitude,
-          widthFt: widthFt
+        runwaysByAirport[airportIdent, default: []].append(
+          SourceRunwayEnd(
+            name: highIdent,
+            reciprocalName: columns.string(row, "le_ident"),
+            trueHeading: columns.double(row, "he_heading_degT"),
+            length: Double(length) * metersPerFoot,
+            width: widthFt.map { $0 * metersPerFoot },
+            surface: surfaceType,
+            thresholdLatitude: columns.double(row, "he_latitude_deg"),
+            thresholdLongitude: columns.double(row, "he_longitude_deg"),
+            thresholdElevation: columns.int(row, "he_elevation_ft").map {
+              Double($0) * metersPerFoot
+            },
+            displacedThresholdDistance: columns.int(row, "he_displaced_threshold_ft")
+              .map { Double($0) * metersPerFoot }
+          )
         )
-
-        runwaysByAirport[airportIdent, default: []].append(runway)
       }
     }
 
@@ -210,18 +198,11 @@ struct OurAirportsLoader {
     return .paved
   }
 
-  private static func calculateHeadingFromIdent(_ ident: String) -> Double {
-    // Extract numeric part from runway identifier (e.g., "09L" -> 09)
-    let digits = ident.prefix(2).filter(\.isNumber)
-    guard let runwayNumber = Double(digits) else { return 0 }
-    return runwayNumber * 10  // Convert to degrees (09 -> 090)
-  }
-
   // MARK: - Instance Methods
 
   func loadAirports(
     onProgress: (@Sendable (Int, Int) async -> Void)? = nil
-  ) async throws -> ([OurAirportData], Date) {
+  ) async throws -> ([SourceAirport], Date) {
     try await signposter.withInterval("load OurAirports data") {
       logger.notice("Downloading OurAirports data…")
       await onProgress?(0, 2)
@@ -286,73 +267,4 @@ private struct CSVColumns {
   func double(_ row: [String], _ name: String) -> Double? {
     rawValue(row, name).flatMap(Double.init)
   }
-}
-
-/// Airport data parsed from OurAirports CSV.
-///
-/// Contains airport metadata needed for the app's airport database.
-/// Values are in OurAirports native units (feet, degrees).
-struct OurAirportData {
-  /// Unique ID from OurAirports database (used as recordID).
-  let id: String
-
-  /// FAA location ID (local_code field).
-  let localId: String
-
-  /// ICAO identifier if available.
-  let ICAO_ID: String?
-
-  /// Airport name.
-  let name: String
-
-  /// City/municipality name.
-  let municipality: String?
-
-  /// Latitude in decimal degrees.
-  let latitude: Double
-
-  /// Longitude in decimal degrees.
-  let longitude: Double
-
-  /// Field elevation in feet.
-  let elevationFt: Double
-
-  /// Runways at this airport.
-  let runways: [OurRunwayData]
-}
-
-/// Runway data parsed from OurAirports CSV.
-///
-/// Contains runway properties needed for performance calculations.
-/// Values are in OurAirports native units (feet, degrees).
-struct OurRunwayData {
-  /// Runway designator (e.g., "09L").
-  let name: String
-
-  /// Threshold elevation in feet.
-  let elevationFt: Double?
-
-  /// True heading in degrees.
-  let trueHeading: Double
-
-  /// Runway length in feet.
-  let lengthFt: Double
-
-  /// Displaced threshold distance in feet.
-  let displacedThresholdFt: Double
-
-  /// Runway surface type.
-  let surfaceType: SurfaceType
-
-  /// Name of the reciprocal runway end.
-  let reciprocalName: String?
-
-  /// Threshold latitude in decimal degrees.
-  let thresholdLatitude: Double?
-
-  /// Threshold longitude in decimal degrees.
-  let thresholdLongitude: Double?
-
-  /// Runway width in feet.
-  let widthFt: Double?
 }

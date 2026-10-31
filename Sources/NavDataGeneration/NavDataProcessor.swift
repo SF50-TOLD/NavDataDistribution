@@ -32,9 +32,11 @@ enum NavDataProcessorError: LocalizedError {
 /// 3. Download and parse OurAirports CSV data
 /// 4. Download and parse CIFP data for departure procedures
 /// 5. Download and parse DOF obstacle data
-/// 6. Merge datasets (NASR takes priority)
-/// 7. Write to property list format
-/// 8. Compress using XZ/LZMA
+/// 6. Download and parse the supplementary sources (open flightmaps, national AIP and
+///    obstacle data sets)
+/// 7. Resolve every source's records into one record per airport (see `AirportResolver`)
+/// 8. Write to property list format
+/// 9. Compress using XZ/LZMA
 ///
 /// ## Progress Tracking
 ///
@@ -44,24 +46,26 @@ enum NavDataProcessorError: LocalizedError {
 ///
 /// | Step             | Units | Cumulative |
 /// |------------------|-------|------------|
-/// | NASR loading     |    28 |         28 |
-/// | OurAirports      |     3 |         31 |
-/// | CIFP             |     4 |         35 |
-/// | d-TPP            |    13 |         48 |
-/// | DOF              |     5 |         53 |
-/// | Merge            |    21 |         74 |
-/// | Write + compress |    26 |        100 |
+/// | NASR loading     |    26 |         26 |
+/// | OurAirports      |     3 |         29 |
+/// | CIFP             |     4 |         33 |
+/// | d-TPP            |    12 |         45 |
+/// | DOF              |     5 |         50 |
+/// | Supplementary    |     8 |         58 |
+/// | Merge            |    18 |         76 |
+/// | Write + compress |    24 |        100 |
 public struct NavDataProcessor: Sendable {
 
   // MARK: - Progress Phase Boundaries
 
   /// Cumulative progress boundaries for each processing phase.
-  private static let nasrEnd: Int64 = 28
-  private static let ourAirportsEnd: Int64 = 31
-  private static let cifpEnd: Int64 = 35
-  private static let dtppEnd: Int64 = 48
-  private static let dofEnd: Int64 = 53
-  private static let mergeEnd: Int64 = 74
+  private static let nasrEnd: Int64 = 26
+  private static let ourAirportsEnd: Int64 = 29
+  private static let cifpEnd: Int64 = 33
+  private static let dtppEnd: Int64 = 45
+  private static let dofEnd: Int64 = 50
+  private static let supplementaryEnd: Int64 = 58
+  private static let mergeEnd: Int64 = 76
 
   /// The NASR cycle to download (e.g., 2501 for January 2025).
   let cycle: SwiftNASR.Cycle
@@ -149,7 +153,8 @@ public struct NavDataProcessor: Sendable {
       ourAirportsLastUpdated: loadedData.ourAirportsLastUpdated,
       airports: loadedData.airports,
       obstacles: loadedData.obstacles,
-      navaids: loadedData.navaids
+      navaids: loadedData.navaids,
+      supplementarySources: loadedData.supplementarySources
     )
 
     // Write and compress combined data (100 - mergeEnd units)
@@ -266,17 +271,30 @@ public struct NavDataProcessor: Sendable {
 
     try Task.checkCancellation()
 
-    // Merge and de-duplicate (dofEnd → mergeEnd)
+    // Load supplementary sources (dofEnd → supplementaryEnd)
+    logger.notice("Loading supplementary data…")
+    await reportProgress(Self.dofEnd, String(localized: "Loading supplementary data…"))
+    let supplementary = try await loadSupplementaryData(CIFPCycle: cifpResult.cycle)
+    await reportProgress(Self.supplementaryEnd, String(localized: "Loading supplementary data…"))
+
+    try Task.checkCancellation()
+
+    // Merge and de-duplicate (supplementaryEnd → mergeEnd)
     logger.notice("Merging and de-duplicating airport data…")
-    await reportProgress(Self.dofEnd, String(localized: "Merging and de-duplicating airport data…"))
+    await reportProgress(
+      Self.supplementaryEnd,
+      String(localized: "Merging and de-duplicating airport data…")
+    )
     let mergedAirports = await mergeAirports(
       NASRAirports: nasrResult.airports,
-      ourAirports: ourAirports,
+      records: ourAirports + supplementary.airports,
       timezoneLookup: timezoneLookup,
       cifpData: cifpResult.data,
       cifpProcessor: cifpProcessor,
       nameResolver: nameResolver
     )
+    let obstacles = ObstacleMerger.merge([dofResult.obstacles] + supplementary.obstacles)
+    logger.notice("Kept \(obstacles.count) obstacles after resolving repeats across sources")
     await reportProgress(Self.mergeEnd, String(localized: "Merging complete"))
 
     try Task.checkCancellation()
@@ -294,8 +312,9 @@ public struct NavDataProcessor: Sendable {
       ourAirportsLastUpdated: ourAirportsLastUpdated,
       cifpCycle: cifpResult.cycle,
       dofCycle: dofResult.cycle,
-      obstacles: dofResult.obstacles,
-      navaids: navaids
+      obstacles: obstacles,
+      navaids: navaids,
+      supplementarySources: supplementary.sources
     )
   }
 
@@ -333,156 +352,49 @@ public struct NavDataProcessor: Sendable {
 
   // MARK: - Airport Merging
 
-  /// Merges NASR and OurAirports data, deduplicating by location ID.
+  /// Resolves every source's records into one record per airport, and attaches CIFP
+  /// procedures to those with an ICAO identifier.
   private func mergeAirports(
     NASRAirports: [AirportDataCodable.AirportCodable],
-    ourAirports: [OurAirportData],
+    records: [SourceAirport],
     timezoneLookup: SwiftTimeZoneLookup,
     cifpData: CIFPData?,
     cifpProcessor: CIFPProcessor,
     nameResolver: ProcedureNameResolver?
   ) async -> [AirportDataCodable.AirportCodable] {
-    var mergedAirports = [AirportDataCodable.AirportCodable]()
-    var NASRLocationIds = Set<String>()
-    var stats = NamingStats()
+    let resolution = AirportResolver(NASRAirports: NASRAirports, records: records).resolve()
+    log(resolution.statistics)
 
-    // Add all NASR airports first (they have priority)
-    for airport in NASRAirports {
-      // Add procedures from CIFP if available
-      let procedures: [AirportDataCodable.ProcedureCodable]?
-      if let cifpData, let icaoId = airport.ICAO_ID {
-        let departures = await cifpProcessor.extractDepartureProcedures(
-          icaoId: icaoId,
-          cifpData: cifpData,
-          nameResolver: nameResolver
-        )
-        let approaches = await cifpProcessor.extractApproachProcedures(
-          icaoId: icaoId,
-          cifpData: cifpData,
-          nameResolver: nameResolver
-        )
-        stats += departures.stats
-        stats += approaches.stats
-        let combined = departures.procedures + approaches.procedures
-        procedures = combined.isEmpty ? nil : combined
-      } else {
-        procedures = nil
-      }
-
-      let airportWithProcedures = AirportDataCodable.AirportCodable(
-        recordID: airport.recordID,
-        locationID: airport.locationID,
-        ICAO_ID: airport.ICAO_ID,
-        name: airport.name,
-        city: airport.city,
-        dataSource: airport.dataSource,
-        latitude: airport.latitude,
-        longitude: airport.longitude,
-        elevation: airport.elevation,
-        variation: airport.variation,
-        timeZone: airport.timeZone,
-        runways: airport.runways,
-        procedures: procedures
-      )
-
-      mergedAirports.append(airportWithProcedures)
-      NASRLocationIds.insert(airport.locationID)
+    let builder = GoldenRecordBuilder { latitude, longitude in
+      timezoneLookup.simple(latitude: Float(latitude), longitude: Float(longitude))
     }
+    var stats = NamingStats()
+    var mergedAirports = [AirportDataCodable.AirportCodable]()
 
-    // Add OurAirports data that doesn't exist in NASR
-    var ourAirportsAdded = 0
-    for ourAirport in ourAirports {
-      // Skip if this airport's local_id matches a NASR locationID
-      if !ourAirport.localId.isEmpty && NASRLocationIds.contains(ourAirport.localId) {
+    for resolved in resolution.airports {
+      guard let airport = builder.build(resolved) else { continue }
+      guard let cifpData, let icaoId = airport.ICAO_ID else {
+        mergedAirports.append(airport)
         continue
       }
 
-      // Convert OurAirports data to our codable format
-      var runways = [AirportDataCodable.RunwayCodable]()
-      for runway in ourAirport.runways {
-        let takeoffRun = runway.lengthFt - runway.displacedThresholdFt
-
-        runways.append(
-          AirportDataCodable.RunwayCodable(
-            name: runway.name,
-            elevation: runway.elevationFt.map { $0 * 0.3048 },  // Convert feet to meters
-            trueHeading: runway.trueHeading,
-            gradient: nil,  // OurAirports doesn't provide gradient
-            length: runway.lengthFt * 0.3048,  // Convert feet to meters
-            takeoffRun: takeoffRun > 0 ? takeoffRun * 0.3048 : nil,
-            takeoffDistance: nil,  // Not available in OurAirports
-            landingDistance: nil,  // Not available in OurAirports
-            surfaceType: runway.surfaceType.rawValue,
-            reciprocalName: runway.reciprocalName,
-            thresholdLatitude: runway.thresholdLatitude,
-            thresholdLongitude: runway.thresholdLongitude,
-            width: runway.widthFt.map { $0 * 0.3048 },  // Convert feet to meters
-            thresholdCrossingHeight: nil,  // Not available in OurAirports
-            glidepathAngle: nil,  // Not available in OurAirports
-            displacedThresholdDistance: runway.displacedThresholdFt > 0
-              ? runway.displacedThresholdFt * 0.3048 : nil
-          )
-        )
-      }
-
-      if runways.isEmpty { continue }
-
-      // Calculate magnetic variation for this location
-      let variation = GeoCalculations.calculateMagneticVariation(
-        ourAirport.latitude,
-        ourAirport.longitude
+      let departures = await cifpProcessor.extractDepartureProcedures(
+        icaoId: icaoId,
+        cifpData: cifpData,
+        nameResolver: nameResolver
       )
-
-      // Lookup timezone for this airport
-      let timeZone = timezoneLookup.simple(
-        latitude: Float(ourAirport.latitude),
-        longitude: Float(ourAirport.longitude)
+      let approaches = await cifpProcessor.extractApproachProcedures(
+        icaoId: icaoId,
+        cifpData: cifpData,
+        nameResolver: nameResolver
       )
-
-      // Add procedures from CIFP if available (OurAirports may have ICAO IDs too)
-      let procedures: [AirportDataCodable.ProcedureCodable]?
-      if let cifpData, let icaoId = ourAirport.ICAO_ID {
-        let departures = await cifpProcessor.extractDepartureProcedures(
-          icaoId: icaoId,
-          cifpData: cifpData,
-          nameResolver: nameResolver
-        )
-        let approaches = await cifpProcessor.extractApproachProcedures(
-          icaoId: icaoId,
-          cifpData: cifpData,
-          nameResolver: nameResolver
-        )
-        stats += departures.stats
-        stats += approaches.stats
-        let combined = departures.procedures + approaches.procedures
-        procedures = combined.isEmpty ? nil : combined
-      } else {
-        procedures = nil
-      }
-
-      let codableAirport = AirportDataCodable.AirportCodable(
-        recordID: ourAirport.id,
-        locationID: ourAirport.localId,
-        ICAO_ID: ourAirport.ICAO_ID,
-        name: ourAirport.name,
-        city: ourAirport.municipality,
-        dataSource: "ourAirports",
-        latitude: ourAirport.latitude,
-        longitude: ourAirport.longitude,
-        elevation: ourAirport.elevationFt * 0.3048,  // Convert feet to meters
-        variation: variation,
-        timeZone: timeZone,
-        runways: runways,
-        procedures: procedures
-      )
-
-      mergedAirports.append(codableAirport)
-      ourAirportsAdded += 1
+      stats += departures.stats
+      stats += approaches.stats
+      let procedures = departures.procedures + approaches.procedures
+      mergedAirports.append(airport.with(procedures: procedures.isEmpty ? nil : procedures))
     }
 
-    logger.notice("Added \(ourAirportsAdded) airports from OurAirports (non-duplicates)")
     logger.notice("Total airports after merge: \(mergedAirports.count)")
-
     logger.notice(
       """
       Named \(stats.approachesNamed)/\(stats.approachesTotal) approaches \
@@ -497,6 +409,31 @@ public struct NavDataProcessor: Sendable {
     )
 
     return mergedAirports
+  }
+
+  private func log(_ statistics: Resolution.Statistics) {
+    logger.notice(
+      """
+      Resolved \(statistics.airports) airports: \(statistics.identifierLinks) identifier links, \
+      \(statistics.geometricLinks) geometric links, \(statistics.distanceVetoes) links vetoed by \
+      distance, \(statistics.conflictVetoes) by conflicting identifiers; dropped \
+      \(statistics.droppedWithoutRunways) records without a runway layout
+      """
+    )
+  }
+
+  /// Loads the supplementary sources for the AIRAC cycle in effect when the NASR cycle
+  /// starts. A failure to load them leaves the airports as the core sources describe them.
+  private func loadSupplementaryData(CIFPCycle: SwiftCIFP.Cycle?) async throws -> SupplementaryData
+  {
+    guard let effectiveDate = cycle.effectiveDate,
+      let AIRAC = CIFPCycle ?? SwiftCIFP.Cycle.cycle(for: effectiveDate)
+    else {
+      logger.warning("No AIRAC cycle for \(cycle); continuing without supplementary data")
+      return SupplementaryData()
+    }
+    return try await SupplementaryDataLoader(logger: logger)
+      .load(AIRAC: AIRAC.id, effectiveDate: effectiveDate)
   }
 
   // MARK: - Navaid Extraction
@@ -537,5 +474,6 @@ public struct NavDataProcessor: Sendable {
     let dofCycle: SwiftDOF.Cycle?
     let obstacles: [AirportDataCodable.ObstacleCodable]
     let navaids: [NavaidCodable]?
+    let supplementarySources: [AirportDataCodable.SupplementarySource]
   }
 }

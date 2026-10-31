@@ -1,5 +1,34 @@
 # Change Log
 
+## [3.0.0] - 2026-10-31
+
+**Breaking:** airport `recordID`s are namespaced keys taken from each airport's most
+authoritative identifier (`FAA:<site number>`, `ICAO:<indicator>`,
+`LOC:<country>:<code>`, `OA:<OurAirports id>`, or `OFM:<region>:<code>`), and each
+airport lists its other identifiers, including the bare site number or OurAirports
+id earlier files used, as `aliases`. Requires NavData 2.0.0.
+
+Add open flightmaps, the NATS UK AIP and obstacle data sets, LFV's Swedish
+threshold points and obstacles, and the Austro Control and Swiss FOCA obstacle
+data sets, read with SwiftAIXM. Records from every source are resolved into one
+airport each, matched by ICAO indicator, national code, or position and shared
+runway, with each value taken from the highest-priority source that has it.
+Outside the US, runway ends gain threshold positions, declared distances, glide
+path angles, and threshold crossing heights where these sources publish them.
+
+Runway gradient is computed only from official national threshold elevations,
+and a declared distance longer than its runway, or equal to the runway's length
+read in the wrong unit, is passed over for the next source's value. Where two
+sources publish the same obstacle, the taller record is kept; a source's own
+obstacles are never merged with each other.
+
+Move to SwiftNASR 5.0.1, whose coordinates are exact on Apple platforms.
+
+Airport `dataSource` is written as `NASR` or `OurAirports`, the spellings the
+app reads; it was `nasr` and `ourAirports`, which the app read as NASR for every
+airport. The file lists its supplementary sources, with the attribution each
+requires, in `supplementarySources`.
+
 ## [2.0.0] - 2026-10-28
 
 **Breaking:** the package now requires macOS 27 and Swift tools 6.4, which

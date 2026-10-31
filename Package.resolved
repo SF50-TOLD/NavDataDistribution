@@ -1,13 +1,13 @@
 {
-  "originHash" : "8a227588023b6fa2260de4fdb386431e37f1f5dcb2dca1669c4de75260f7b0d5",
+  "originHash" : "b61fe9af3e35c2addf395fead1bfaa15c5911eedf62d3c2d7da0d7818b602ca2",
   "pins" : [
     {
       "identity" : "navdata",
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/SF50-TOLD/NavData",
       "state" : {
-        "revision" : "684eebb6816dae0fe3a517e3cb7e449eb35c2e90",
-        "version" : "1.0.1"
+        "revision" : "1d5d9dc4bd836d2258f2e12d4a615ea0871898ad",
+        "version" : "2.0.0"
       }
     },
     {
@@ -83,6 +83,15 @@
       }
     },
     {
+      "identity" : "swiftaixm",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/RISCfuture/SwiftAIXM",
+      "state" : {
+        "revision" : "3d8b8d6ccb5bdc25e99b96611ac4938b18782611",
+        "version" : "1.0.0"
+      }
+    },
+    {
       "identity" : "swiftcifp",
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/RISCfuture/SwiftCIFP",
@@ -105,8 +114,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/RISCfuture/SwiftNASR",
       "state" : {
-        "revision" : "a4d56cc686e148460a200eeff5751c2beed36847",
-        "version" : "5.0.0"
+        "revision" : "974fa36df8f34adc65f43f5267cfde5b8517d3dc",
+        "version" : "5.0.1"
       }
     },
     {

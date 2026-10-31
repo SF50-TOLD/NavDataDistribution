@@ -276,7 +276,7 @@ struct NASRProcessor {
         ICAO_ID: airport.ICAOIdentifier,
         name: airport.name,
         city: airport.city,
-        dataSource: "nasr",
+        dataSource: AirportDataSource.NASR.rawValue,
         latitude: latitude.value,
         longitude: longitude.value,
         elevation: Double(elevationFt) * 0.3048,  // Convert feet to meters

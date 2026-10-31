@@ -20,11 +20,26 @@ For a requested NASR cycle, the generator:
    joining it with NASR `STARDP` records so approaches and departures carry
    their published chart titles.
 6. Downloads and parses the FAA Digital Obstacle File ([SwiftDOF](https://github.com/RISCfuture/SwiftDOF)).
-7. Merges the datasets (NASR takes priority over OurAirports) into the shared
-   [`NavData`](https://github.com/RISCfuture/NavData) schema.
-8. Writes the result as a binary property list, then compresses it with
+7. Downloads and parses the supplementary sources for the AIRAC cycle
+   ([SwiftAIXM](https://github.com/RISCfuture/SwiftAIXM)): [open flightmaps](https://www.openflightmaps.org)
+   aerodromes for Europe and southern Africa, the UK AIP and obstacle data sets
+   published by NATS, LFV's threshold points and obstacles for Sweden, and the
+   Austro Control and Swiss FOCA obstacle data sets. Each is optional; one that
+   fails to load is logged and left out.
+8. Resolves every source's records into one record per airport. Records are
+   matched by ICAO indicator, national code, or position and shared runway; each
+   airport is keyed by its most authoritative identifier (`FAA:<site number>`,
+   `ICAO:<indicator>`, `LOC:<country>:<code>`, `OA:<OurAirports id>`, or
+   `OFM:<region>:<code>`), with its other identifiers as aliases; and each value
+   comes from the highest-priority source that has it (NASR, then national AIP
+   data, then open flightmaps, then OurAirports).
+9. Writes the result into the shared [`NavData`](https://github.com/SF50-TOLD/NavData)
+   schema as a binary property list, then compresses it with
    [StreamingLZMA](https://github.com/RISCfuture/StreamingLZMA)'s XZ container format —
    byte-compatible with the app's `NSData.decompressed(using: .lzma)`.
+
+Why the European official sources stop at these, and what using the others would
+take, is in [docs/data-permissions.md](docs/data-permissions.md).
 
 ## Usage
 
