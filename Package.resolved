@@ -1,5 +1,5 @@
 {
-  "originHash" : "b61fe9af3e35c2addf395fead1bfaa15c5911eedf62d3c2d7da0d7818b602ca2",
+  "originHash" : "ce124b920e3666b7dcfe9f7a6469e0aca1ca4e43ea25f4eb9d5013f1fd818db3",
   "pins" : [
     {
       "identity" : "navdata",
@@ -60,8 +60,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/apple/swift-log",
       "state" : {
-        "revision" : "9c6fb14227f55d8f711ce3847dc2f419fb0ecacb",
-        "version" : "1.15.1"
+        "revision" : "c9c6bb9d275ec0d95c3ad16391f3f045dc623104",
+        "version" : "1.16.2"
       }
     },
     {
