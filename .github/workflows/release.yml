@@ -2,10 +2,11 @@ name: Publish Nav Data
 
 on:
   schedule:
-    # Daily at 09:00 UTC, but only acts the day before each AIRAC cycle takes
-    # effect: it cuts that cycle's release then, so its continuously-updated
-    # OurAirports data is fresh. Every other day is a no-op. Idempotent.
-    - cron: "0 9 * * *"
+    # Wednesdays and Thursdays at 09:00 UTC, but only acts the day before each
+    # AIRAC cycle takes effect (always a Wednesday, since cycles take effect on
+    # Thursdays): it cuts that cycle's release then, so its continuously-updated
+    # OurAirports data is fresh. Every other run is a no-op. Idempotent.
+    - cron: "0 9 * * 3,4"
   workflow_dispatch:
     inputs:
       cycle:
@@ -21,8 +22,49 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  probe:
+    name: Check whether a release is due
+    runs-on: ubuntu-latest
+    outputs:
+      due: ${{ steps.due.outputs.due }}
+    steps:
+      - name: Check whether a release is due
+        id: due
+        env:
+          GH_TOKEN: ${{ github.token }}
+          # There is no checkout here for gh to read the repository from.
+          GH_REPO: ${{ github.repository }}
+          DISPATCH_CYCLE: ${{ github.event.inputs.cycle }}
+        run: |
+          set -euo pipefail
+
+          # A release is due when tomorrow is the effective date of an AIRAC
+          # cycle, 28 days apart from SwiftNASR's Cycle.datum, and that
+          # cycle's release does not exist yet. An explicit dispatch request
+          # always proceeds.
+          airac_datum=2020-12-03
+          tomorrow="$(date -u -d tomorrow +%F)"
+          days_since_datum=$(( ($(date -u -d "$tomorrow" +%s) - $(date -u -d "$airac_datum" +%s)) / 86400 ))
+
+          if [ -n "$DISPATCH_CYCLE" ]; then
+            echo "Manual request for cycle $DISPATCH_CYCLE."
+            due=true
+          elif (( days_since_datum < 0 || days_since_datum % 28 != 0 )); then
+            echo "Tomorrow ($tomorrow) is not an AIRAC effective date; nothing to do."
+            due=false
+          elif gh release view "$tomorrow" >/dev/null 2>&1; then
+            echo "Release $tomorrow already exists; nothing to do."
+            due=false
+          else
+            echo "Cycle $tomorrow takes effect tomorrow and has no release."
+            due=true
+          fi
+          echo "due=$due" >> "$GITHUB_OUTPUT"
+
   publish:
     name: Generate and publish
+    needs: probe
+    if: needs.probe.outputs.due == 'true'
     # Runs on the ubuntu-latest host (not a container) so the preinstalled `gh` CLI is
     # available for publishing releases.
     runs-on: ubuntu-latest
