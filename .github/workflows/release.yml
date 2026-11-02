@@ -2,11 +2,11 @@ name: Publish Nav Data
 
 on:
   schedule:
-    # Wednesdays and Thursdays at 09:00 UTC, but only acts the day before each
-    # AIRAC cycle takes effect (always a Wednesday, since cycles take effect on
-    # Thursdays): it cuts that cycle's release then, so its continuously-updated
+    # Wednesdays at 09:00 UTC, but only acts the day before each AIRAC cycle
+    # takes effect (always a Wednesday, since cycles take effect on Thursdays):
+    # it cuts that cycle's release then, so its continuously-updated
     # OurAirports data is fresh. Every other run is a no-op. Idempotent.
-    - cron: "0 9 * * 3,4"
+    - cron: "0 9 * * 3"
   workflow_dispatch:
     inputs:
       cycle:
